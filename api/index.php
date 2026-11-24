@@ -2,6 +2,13 @@
 
 declare(strict_types=1);
 
+// Silence deprecation notices in PHP 8.5 on serverless runtime
+ini_set('display_errors', '0');
+error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
+
+// Ensure Laravel resolves routes from root '/' instead of stripping '/api'
+$_SERVER['SCRIPT_NAME'] = '/index.php';
+
 // Ensure writable /tmp storage structure exists on Vercel's read-only serverless filesystem
 $isVercel = ! empty($_ENV['VERCEL'] ?? $_SERVER['VERCEL'] ?? getenv('VERCEL'));
 if ($isVercel) {
