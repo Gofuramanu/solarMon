@@ -3,6 +3,7 @@
   "version": 2,
   "framework": null,
   "buildCommand": "npm run build",
+  "outputDirectory": "public",
   "functions": {
     "api/index.php": {
       "runtime": "vercel-php@0.9.0",
@@ -11,28 +12,11 @@
   },
   "routes": [
     {
-      "src": "/build/(.*)",
-      "dest": "/public/build/$1"
+      "src": "/index.php",
+      "dest": "/api/index.php"
     },
     {
-      "src": "/icons/(.*)",
-      "dest": "/public/icons/$1"
-    },
-    {
-      "src": "/manifest.webmanifest",
-      "dest": "/public/manifest.webmanifest"
-    },
-    {
-      "src": "/sw.js",
-      "dest": "/public/sw.js"
-    },
-    {
-      "src": "/favicon.ico",
-      "dest": "/public/favicon.ico"
-    },
-    {
-      "src": "/robots.txt",
-      "dest": "/public/robots.txt"
+      "handle": "filesystem"
     },
     {
       "src": "/(.*)",
@@ -55,6 +39,7 @@
     "SESSION_DRIVER": "database",
     "SESSION_SECURE_COOKIE": "true",
     "QUEUE_CONNECTION": "sync",
-    "MYSQL_ATTR_SSL_CA": "/etc/ssl/certs/ca-certificates.crt"
+    "MYSQL_ATTR_SSL_CA": "true",
+    "MYSQL_ATTR_SSL_VERIFY_SERVER_CERT": "false"
   }
 }
