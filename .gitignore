@@ -1,18 +1,20 @@
-/.phpunit.cache
+# Dependency / build leftovers (jika ada)
 /node_modules
-/public/hot
-/public/storage
-/storage/*.key
 /vendor
+/storage
+/bootstrap/cache
+
+# Environment & credentials
 .env
-.env.backup
-.env.production
-.phpunit.result.cache
-Homestead.json
-Homestead.yaml
-auth.json
-npm-debug.log
-yarn-error.log
-/.fleet
-/.idea
+.env.*
+!.env.example
+solarMon/config.h
+
+# IDE & OS & Test cache
+.DS_Store
+Thumbs.db
 /.vscode
+/.idea
+/.fleet
+.phpunit.result.cache
+*.log

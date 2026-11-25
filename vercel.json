@@ -1,56 +1,15 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "version": 2,
-  "framework": null,
-  "buildCommand": "npm run build",
-  "outputDirectory": "public",
-  "functions": {
-    "api/index.php": {
-      "runtime": "vercel-php@0.9.0",
-      "maxDuration": 15
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+      ]
     }
-  },
-  "routes": [
-    {
-      "src": "/build/(.*)",
-      "dest": "/build/$1"
-    },
-    {
-      "src": "/icons/(.*)",
-      "dest": "/icons/$1"
-    },
-    {
-      "src": "/(manifest\\.webmanifest|sw\\.js|favicon\\.ico|robots\\.txt)",
-      "dest": "/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/api/index.php"
-    }
-  ],
-  "env": {
-    "APP_NAME": "SolarMonitor",
-    "APP_ENV": "production",
-    "APP_KEY": "base64:j1OMbiN0pafhaQNCZOI0DT7kdyxyLE3gGmHngdX9JAE=",
-    "APP_DEBUG": "false",
-    "APP_TIMEZONE": "Asia/Jakarta",
-    "APP_CONFIG_CACHE": "/tmp/config.php",
-    "APP_EVENTS_CACHE": "/tmp/events.php",
-    "APP_PACKAGES_CACHE": "/tmp/packages.php",
-    "APP_ROUTES_CACHE": "/tmp/routes.php",
-    "APP_SERVICES_CACHE": "/tmp/services.php",
-    "VIEW_COMPILED_PATH": "/tmp/storage/framework/views",
-    "LOG_CHANNEL": "stderr",
-    "CACHE_STORE": "database",
-    "SESSION_DRIVER": "database",
-    "SESSION_SECURE_COOKIE": "true",
-    "QUEUE_CONNECTION": "sync",
-    "DB_CONNECTION": "mysql",
-    "DB_HOST": "gateway01.ap-southeast-1.prod.aws.tidbcloud.com",
-    "DB_PORT": "4000",
-    "DB_DATABASE": "test",
-    "DB_USERNAME": "4TZpb8fbi1HAY8X.root",
-    "MYSQL_ATTR_SSL_CA": "true",
-    "MYSQL_ATTR_SSL_VERIFY_SERVER_CERT": "false"
-  }
+  ]
 }

@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" id="metaThemeColor" content="#000000">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>SolarMonitor - Telemetry &amp; Data Logging Panel Surya</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./assets/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Sidebar Backdrop (Mobile/Tablet Drawer) -->
+    <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
+
+    <!-- SIDEBAR NAVIGATION (DESKTOP) -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2v2"></path>
+            <path d="M12 20v2"></path>
+            <path d="m4.93 4.93 1.41 1.41"></path>
+            <path d="m17.66 17.66 1.41 1.41"></path>
+            <path d="M2 12h2"></path>
+            <path d="M20 12h2"></path>
+            <path d="m6.34 17.66-1.41 1.41"></path>
+            <path d="m19.07 4.93-1.41 1.41"></path>
+          </svg>
+        </div>
+        <div>
+          <h1>SolarMonitor</h1>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav" aria-label="Navigasi Utama">
+        <button class="nav-item active" data-page="overview" type="button">
+          <svg class="nav-svg" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"></rect><line x1="12" y1="3" x2="12" y2="21"></line></svg>
+          <span>Overview</span>
+        </button>
+        <button class="nav-item" data-page="electrical" type="button">
+          <svg class="nav-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          <span>Electrical Telemetry</span>
+        </button>
+        <button class="nav-item" data-page="environment" type="button">
+          <svg class="nav-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="M2 12h2"></path><path d="M20 12h2"></path></svg>
+          <span>Solar &amp; Thermal</span>
+        </button>
+        <button class="nav-item" data-page="history" type="button">
+          <svg class="nav-svg" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l4 2"></path></svg>
+          <span>History &amp; Logs</span>
+        </button>
+        <button class="nav-item" data-page="settings" type="button">
+          <svg class="nav-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          <span>Settings</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="device-chip">
+          <span class="chip-label">NODE ID</span>
+          <strong id="sidebarDeviceId">ESP32_SOLAR_01</strong>
+        </div>
+        <div class="sidebar-meta-row">
+          <span id="backendBadge" class="meta-chip">Simulasi</span>
+          <button id="authActionBtn" class="meta-chip clickable" type="button">
+            <span id="userRoleLabel">Demo Mode</span>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN WORKSPACE -->
+    <div class="main-area">
+      <!-- BLYNK-STYLE TOP APP HEADER -->
+      <header class="blynk-header">
+        <div class="blynk-header-inner">
+          <div class="header-title-wrap">
+            <button id="menuToggleBtn" class="menu-toggle" type="button" aria-label="Buka Menu">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+              </svg>
+            </button>
+            <div class="brand-title-stack">
+              <h2 id="pageTitle" class="brand-main-title">SolarMonitor<br>Panel</h2>
+              <p id="pageSubtitle" class="topbar-subtitle hidden">ESP32 Solar Telemetry</p>
+            </div>
+          </div>
+
+          <div class="header-pills-right">
+            <!-- Status Pill: ESP32 OFFLINE / ONLINE -->
+            <div id="heartbeatBadge" class="blynk-status-pill offline">
+              <span class="led-pip"></span>
+              <span id="heartbeatText">ESP32<br>OFFLINE</span>
+            </div>
+
+            <!-- Install App Button -->
+            <button id="installAppBtn" class="blynk-install-btn" type="button" title="Pasang Aplikasi ke HP">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              <span>Install</span>
+            </button>
+
+            <!-- Light / Dark Theme Toggle Button -->
+            <button id="themeToggleBtn" class="blynk-gear-btn" type="button" aria-label="Ganti Tema Terang / Gelap" title="Ganti Dark / Light Mode">
+              <svg id="themeIconSun" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="5"></circle>
+                <line x1="12" y1="1" x2="12" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="23"></line>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                <line x1="1" y1="12" x2="3" y2="12"></line>
+                <line x1="21" y1="12" x2="23" y2="12"></line>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+              </svg>
+              <svg id="themeIconMoon" class="hidden" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+              </svg>
+            </button>
+
+            <!-- Settings Gear Button -->
+            <button id="headerSettingsBtn" class="blynk-gear-btn" type="button" data-goto="settings" aria-label="Pengaturan">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- ALERT BANNER -->
+      <div id="alertBanner" class="alert-banner hidden" role="alert">
+        <span id="alertBannerIcon" class="alert-tag">ALERT</span>
+        <div id="alertBannerText">Peringatan Sistem</div>
+      </div>
+
+      <!-- MAIN PAGE CONTAINER -->
+      <main class="content">
+        <!-- ==================== HALAMAN 1: OVERVIEW ==================== -->
+        <section id="page-overview" class="page active">
+          <!-- 1. System Health Strip (2x2 Grid) -->
+          <div class="health-grid-2x2">
+            <!-- WiFi Status -->
+            <div class="health-tile">
+              <div class="health-icon-wrap">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+                  <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+                  <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+                  <line x1="12" y1="20" x2="12.01" y2="20"></line>
+                </svg>
+              </div>
+              <div class="health-info">
+                <span class="micro-slug">WIFI NODE</span>
+                <div class="health-val-row">
+                  <span id="ovWifiDot" class="led-pip red"></span>
+                  <strong id="ovWifiStatus">Offline</strong>
+                </div>
+                <small id="ovLastSeen" class="micro-sub">Update: --</small>
+              </div>
+            </div>
+
+            <!-- Uptime -->
+            <div class="health-tile">
+              <div class="health-icon-wrap">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </div>
+              <div class="health-info">
+                <span class="micro-slug">UPTIME ESP32</span>
+                <div class="health-val-row">
+                  <strong id="ovUptime">00h 00m</strong>
+                </div>
+                <small id="ovLastSeenSmall" class="micro-sub">0s</small>
+              </div>
+            </div>
+
+            <!-- Thermal Status -->
+            <div class="health-tile">
+              <div class="health-icon-wrap">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path>
+                </svg>
+              </div>
+              <div class="health-info">
+                <span class="micro-slug">THERMAL PANEL</span>
+                <div class="health-val-row">
+                  <span id="ovThermalDot" class="led-pip red"></span>
+                  <strong id="ovThermalHealth">Offline</strong>
+                </div>
+                <small id="ovTempHint" class="micro-sub">Batas 60C</small>
+              </div>
+            </div>
+
+            <!-- Sensor Bus Health -->
+            <div class="health-tile">
+              <div class="health-icon-wrap">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+                  <rect x="9" y="9" width="6" height="6"></rect>
+                  <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"></path>
+                </svg>
+              </div>
+              <div class="health-info">
+                <span class="micro-slug">SENSOR BUS</span>
+                <div class="health-val-row">
+                  <span id="ovBusDot" class="led-pip red"></span>
+                  <strong id="ovBusHealth">0/3 Ready</strong>
+                </div>
+                <small class="micro-sub">I2C + 1-Wire</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. SOLAR & THERMAL SECTION (3-Column Horizontal Cards) -->
+          <div class="section-label-row">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="4"></circle>
+              <path d="M12 2v2"></path>
+              <path d="M12 20v2"></path>
+              <path d="M2 12h2"></path>
+              <path d="M20 12h2"></path>
+            </svg>
+            <span>SOLAR &amp; THERMAL</span>
+          </div>
+
+          <div class="env-trio-grid">
+            <!-- Lux (BH1750) -->
+            <div class="env-trio-card">
+              <div class="env-trio-top">
+                <span class="micro-slug">CAHAYA</span>
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="4"></circle>
+                  <path d="M12 3v2M12 19v2M3 12h2M19 12h2"></path>
+                </svg>
+              </div>
+              <div class="env-trio-val">
+                <span id="ovLux">--</span><small>Lux</small>
+              </div>
+            </div>
+
+            <!-- Panel Temp (DS18B20) -->
+            <div class="env-trio-card">
+              <div class="env-trio-top">
+                <span class="micro-slug">SUHU PANEL</span>
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path>
+                </svg>
+              </div>
+              <div class="env-trio-val">
+                <span id="ovTempPanel">--</span><small>&deg;C</small>
+              </div>
+            </div>
+
+            <!-- Solar Irradiance Category -->
+            <div class="env-trio-card">
+              <div class="env-trio-top">
+                <span class="micro-slug">KONDISI</span>
+                <span id="ovLightDot" class="led-pip"></span>
+              </div>
+              <div class="env-trio-val cond-val">
+                <span id="ovSolarCond">--</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. ELECTRICAL TELEMETRY (2x2 Grid with Glowing Bottom Bars) -->
+          <div class="section-label-row">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg>
+            <span>ELECTRICAL TELEMETRY (INA219)</span>
+          </div>
+
+          <div class="telemetry-grid-2x3">
+            <!-- Voltage -->
+            <div class="blynk-metric-tile">
+              <div class="tile-head">
+                <span class="micro-slug">TEGANGAN PANEL</span>
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 12l3.5-3.5"></path></svg>
+              </div>
+              <div class="tile-reading">
+                <span id="ovVoltage">--</span>
+                <small>V</small>
+              </div>
+            </div>
+
+            <!-- Current -->
+            <div class="blynk-metric-tile">
+              <div class="tile-head">
+                <span class="micro-slug">ARUS KELUARAN</span>
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+              </div>
+              <div class="tile-reading">
+                <span id="ovCurrent">--</span>
+                <small>mA</small>
+              </div>
+            </div>
+
+            <!-- Active Power -->
+            <div class="blynk-metric-tile">
+              <div class="tile-head">
+                <span class="micro-slug">DAYA AKTIF</span>
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+              </div>
+              <div class="tile-reading">
+                <span id="ovPower">--</span>
+                <small>W</small>
+              </div>
+            </div>
+
+            <!-- Energy -->
+            <div class="blynk-metric-tile">
+              <div class="tile-head">
+                <span class="micro-slug">AKUMULASI ENERGI</span>
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="18" height="10" rx="2"></rect><line x1="22" y1="11" x2="22" y2="13"></line></svg>
+              </div>
+              <div class="tile-reading">
+                <span id="ovEnergy">--</span>
+                <small>Wh</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. HARDWARE MODULES STATUS (2x2 Cards) -->
+          <div class="section-label-row">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+              <rect x="9" y="9" width="6" height="6"></rect>
+            </svg>
+            <span>MODUL HARDWARE TERPASANG</span>
+          </div>
+
+          <div class="quick-actuators-2x2">
+            <div class="quick-actuator-card module-card">
+              <div class="qa-top">
+                <svg class="qa-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                <span class="gpio-chip">I2C 0x40</span>
+              </div>
+              <div class="qa-title">INA219 DC Sensor</div>
+              <div class="qa-status">
+                <span id="ovInaBadge" class="state-badge off">OFFLINE</span>
+              </div>
+            </div>
+
+            <div class="quick-actuator-card module-card">
+              <div class="qa-top">
+                <svg class="qa-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M2 12h2M20 12h2"></path></svg>
+                <span class="gpio-chip">I2C 0x23</span>
+              </div>
+              <div class="qa-title">BH1750 Lux Meter</div>
+              <div class="qa-status">
+                <span id="ovBhBadge" class="state-badge off">OFFLINE</span>
+              </div>
+            </div>
+
+            <div class="quick-actuator-card module-card">
+              <div class="qa-top">
+                <svg class="qa-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path></svg>
+                <span class="gpio-chip">GPIO 4</span>
+              </div>
+              <div class="qa-title">DS18B20 Probe</div>
+              <div class="qa-status">
+                <span id="ovDsBadge" class="state-badge off">OFFLINE</span>
+              </div>
+            </div>
+
+            <div class="quick-actuator-card module-card">
+              <div class="qa-top">
+                <svg class="qa-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="6" y1="10" x2="18" y2="10"></line><line x1="6" y1="14" x2="14" y2="14"></line></svg>
+                <span class="gpio-chip">I2C 0x27</span>
+              </div>
+              <div class="qa-title">LCD 16x2 Display</div>
+              <div class="qa-status">
+                <span id="ovLcdBadge" class="state-badge off">OFFLINE</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 5. Recent Activity Terminal Feed -->
+          <div class="panel-box terminal-box" style="margin-top: 16px;">
+            <div class="box-header-row">
+              <span class="micro-slug">RECENT EVENTS &amp; LOGS</span>
+              <button class="btn-link" data-goto="history" type="button">View All</button>
+            </div>
+            <ul id="overviewActivityList" class="activity-feed">
+              <li class="empty-note">Menunggu aliran data sensor...</li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- ==================== HALAMAN 2: ELECTRICAL TELEMETRY ==================== -->
+        <section id="page-electrical" class="page">
+          <div class="panel-box hero-power-card">
+            <div class="hero-power-top">
+              <div>
+                <span class="micro-slug">DAYA PANEL SURYA SESAAT</span>
+                <div class="hero-power-reading">
+                  <span id="elPower">--</span>
+                  <small>W</small>
+                </div>
+              </div>
+              <div class="hero-power-meta-right">
+                <span id="elLoadPct" class="quality-tag good">0.0% KAPASITAS</span>
+              </div>
+            </div>
+
+            <div class="progress-rail">
+              <div id="elLoadBar" class="progress-fill" style="width: 0%;"></div>
+            </div>
+
+            <div class="power-sub-grid">
+              <div class="sub-box">
+                <span class="micro-slug">DAYA MILLIWATT</span>
+                <strong id="elPowerMw">-- mW</strong>
+              </div>
+              <div class="sub-box">
+                <span class="micro-slug">ENERGI TOTAL</span>
+                <strong id="elEnergyKwh">-- kWh</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="two-col-layout">
+            <div class="panel-box chart-box">
+              <h3 class="box-title">Tren Daya (W) &amp; Arus (mA) Real-Time</h3>
+              <div class="chart-wrapper">
+                <canvas id="electricalPowerChart"></canvas>
+              </div>
+            </div>
+            <div class="panel-box chart-box">
+              <h3 class="box-title">Tren Tegangan DC Panel (V) Real-Time</h3>
+              <div class="chart-wrapper">
+                <canvas id="electricalVoltageChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="telemetry-grid-2x3" style="margin-top: 14px;">
+            <div class="blynk-metric-tile">
+              <div class="tile-head">
+                <span class="micro-slug">TEGANGAN BUS</span>
+                <span id="elVoltageQuality" class="quality-tag">--</span>
+              </div>
+              <div class="tile-reading">
+                <span id="elVoltage">--</span> <small>V</small>
+              </div>
+            </div>
+
+            <div class="blynk-metric-tile">
+              <div class="tile-head">
+                <span class="micro-slug">ARUS (mA)</span>
+                <span id="elCurrentAmp" class="quality-tag neutral">-- A</span>
+              </div>
+              <div class="tile-reading">
+                <span id="elCurrent">--</span> <small>mA</small>
+              </div>
+            </div>
+
+            <div class="blynk-metric-tile">
+              <div class="tile-head">
+                <span class="micro-slug">AKUMULASI ENERGI</span>
+                <span class="quality-tag good">TRAPEZOIDAL</span>
+              </div>
+              <div class="tile-reading">
+                <span id="elEnergy">--</span> <small>Wh</small>
+              </div>
+            </div>
+
+            <div class="blynk-metric-tile">
+              <div class="tile-head">
+                <span class="micro-slug">INTERFACE INA219</span>
+                <span class="quality-tag good">I2C 0x40</span>
+              </div>
+              <div class="tile-reading" style="font-size: 20px;">
+                <span>GPIO 21 / 22</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== HALAMAN 3: SOLAR & THERMAL ==================== -->
+        <section id="page-environment" class="page">
+          <div class="panel-box">
+            <div class="box-header-row">
+              <span class="micro-slug">RADIASI CAHAYA &amp; TEMPERATUR PANEL</span>
+              <span id="envPanelZone" class="quality-tag good">NORMAL</span>
+            </div>
+
+            <div class="env-hero-split">
+              <div class="env-hero-box">
+                <span class="micro-slug">INTENSITAS CAHAYA (BH1750)</span>
+                <div class="tile-reading">
+                  <span id="envLux">--</span> <small>Lux</small>
+                </div>
+              </div>
+
+              <div class="env-hero-box">
+                <span class="micro-slug">SUHU PANEL (DS18B20)</span>
+                <div class="tile-reading">
+                  <span id="envTempPanel">--</span> <small>&deg;C</small>
+                </div>
+              </div>
+            </div>
+
+            <div class="env-delta-strip">
+              <div class="box-header-row">
+                <span class="micro-slug">KATEGORI PENCAHAYAAN</span>
+                <strong id="envLightCategory">--</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="telemetry-grid-2x3" style="margin-top: 14px;">
+            <div class="blynk-metric-tile">
+              <div class="tile-head">
+                <span class="micro-slug">AMBANG PERINGATAN HANGAT</span>
+                <span class="quality-tag neutral">DS18B20</span>
+              </div>
+              <div class="tile-reading">
+                <span id="envWarnThreshold">45.0</span> <small>&deg;C</small>
+              </div>
+            </div>
+
+            <div class="blynk-metric-tile">
+              <div class="tile-head">
+                <span class="micro-slug">AMBANG OVERHEAT DARURAT</span>
+                <span class="quality-tag warn">ALARM</span>
+              </div>
+              <div class="tile-reading">
+                <span id="envAlarmThreshold">60.0</span> <small>&deg;C</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-box chart-box" style="margin-top: 14px;">
+            <h3 class="box-title">Tren Intensitas Cahaya (Lux) &amp; Suhu Panel (&deg;C) Real-Time</h3>
+            <div class="chart-wrapper tall">
+              <canvas id="environmentChart"></canvas>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== HALAMAN 4: HISTORY & LOGS ==================== -->
+        <section id="page-history" class="page">
+          <div class="panel-box filter-bar">
+            <div class="filter-controls">
+              <div class="field-inline">
+                <label for="historyRangeSelect">RENTANG WAKTU</label>
+                <select id="historyRangeSelect">
+                  <option value="1h">1 Jam Terakhir</option>
+                  <option value="24h" selected>24 Jam Terakhir</option>
+                  <option value="7d">7 Hari Terakhir</option>
+                  <option value="30d">30 Hari Terakhir</option>
+                  <option value="custom">Custom Tanggal</option>
+                </select>
+              </div>
+
+              <div id="customDateWrap" class="custom-dates hidden">
+                <input type="date" id="historyStartDate" aria-label="Tanggal Mulai">
+                <span>s/d</span>
+                <input type="date" id="historyEndDate" aria-label="Tanggal Selesai">
+              </div>
+
+              <button id="btnLoadHistory" class="btn-primary" type="button">Muat Histori</button>
+            </div>
+
+            <button id="btnExportCsv" class="btn-secondary" type="button">Export CSV</button>
+          </div>
+
+          <div class="health-grid-2x2" style="margin-top: 14px;">
+            <div class="blynk-metric-tile">
+              <span class="micro-slug">DAYA PUNCAK</span>
+              <div class="tile-reading"><span id="histPeakPower">--</span> <small>W</small></div>
+            </div>
+            <div class="blynk-metric-tile">
+              <span class="micro-slug">ENERGI PERIODE</span>
+              <div class="tile-reading"><span id="histDeltaEnergy">--</span> <small>Wh</small></div>
+            </div>
+            <div class="blynk-metric-tile">
+              <span class="micro-slug">RATA-RATA CAHAYA</span>
+              <div class="tile-reading"><span id="histAvgLux">--</span> <small>Lux</small></div>
+            </div>
+            <div class="blynk-metric-tile">
+              <span class="micro-slug">RATA-RATA SUHU PANEL</span>
+              <div class="tile-reading"><span id="histAvgTemp">--</span> <small>&deg;C</small></div>
+            </div>
+          </div>
+
+          <div class="two-col-layout">
+            <div class="panel-box chart-box">
+              <h3 class="box-title">Grafik Histori Daya (W) &amp; Tegangan (V)</h3>
+              <div class="chart-wrapper">
+                <canvas id="historyPowerChart"></canvas>
+              </div>
+            </div>
+            <div class="panel-box chart-box">
+              <h3 class="box-title">Grafik Histori Cahaya (Lux) &amp; Suhu (&deg;C)</h3>
+              <div class="chart-wrapper">
+                <canvas id="historyTempChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-box" style="margin-top: 14px;">
+            <h3 class="box-title">Data Logging Pembacaan Sensor</h3>
+            <div class="table-scroll">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Waktu</th>
+                    <th>Tegangan (V)</th>
+                    <th>Arus (mA)</th>
+                    <th>Daya (W)</th>
+                    <th>Cahaya (Lux)</th>
+                    <th>Suhu (&deg;C)</th>
+                  </tr>
+                </thead>
+                <tbody id="historyTelemetryBody">
+                  <tr>
+                    <td colspan="6" class="empty-note">Belum ada data logging.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel-box" style="margin-top: 14px;">
+            <h3 class="box-title">Audit Trail &amp; Log Aktivitas</h3>
+            <div class="table-scroll">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Waktu</th>
+                    <th>Sumber</th>
+                    <th>Aktor</th>
+                    <th>Kejadian</th>
+                    <th>Keterangan</th>
+                  </tr>
+                </thead>
+                <tbody id="historyActivityBody">
+                  <tr>
+                    <td colspan="5" class="empty-note">Belum ada catatan aktivitas.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== HALAMAN 5: SETTINGS ==================== -->
+        <section id="page-settings" class="page">
+          <div class="two-col-layout" style="margin-top: 0;">
+            <form id="backendConfigForm" class="panel-box form-card">
+              <h3 class="box-title">Koneksi Backend &amp; Sumber Data</h3>
+
+              <div class="form-group">
+                <label for="cfgBackendMode">Sumber Data</label>
+                <select id="cfgBackendMode">
+                  <option value="simulator">Simulasi Interaktif (Tanpa Hardware)</option>
+                  <option value="supabase">Supabase Cloud (Live ESP32)</option>
+                </select>
+              </div>
+
+              <div id="supabaseFields" class="hidden">
+                <div class="form-group">
+                  <label for="cfgSupabaseUrl">Supabase Project URL</label>
+                  <input type="url" id="cfgSupabaseUrl" placeholder="https://xxxxxxxxxxxx.supabase.co">
+                </div>
+                <div class="form-group">
+                  <label for="cfgSupabaseKey">Supabase Anon Public Key</label>
+                  <input type="text" id="cfgSupabaseKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+                </div>
+                <div class="form-group">
+                  <label for="cfgDeviceId">Device ID Target</label>
+                  <input type="text" id="cfgDeviceId" value="ESP32_SOLAR_01" placeholder="ESP32_SOLAR_01">
+                </div>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn-primary">Simpan &amp; Terapkan Koneksi</button>
+              </div>
+            </form>
+
+            <form id="thresholdForm" class="panel-box form-card">
+              <h3 class="box-title">Parameter Panel &amp; Ambang Batas</h3>
+
+              <div class="form-group">
+                <label for="cfgCapacityWp">Kapasitas Nominal Panel (Wp)</label>
+                <input type="number" step="1" min="1" max="50000" id="cfgCapacityWp" value="10">
+              </div>
+
+              <div class="form-group">
+                <label for="cfgThWarn">Ambang Suhu Panel Hangat (&deg;C)</label>
+                <input type="number" step="0.5" min="20" max="90" id="cfgThWarn" value="45">
+              </div>
+
+              <div class="form-group">
+                <label for="cfgThAlarm">Ambang Suhu Overheat Alarm (&deg;C)</label>
+                <input type="number" step="0.5" min="25" max="105" id="cfgThAlarm" value="60">
+              </div>
+
+              <div class="form-group">
+                <label for="cfgLowLux">Batas Cahaya Redup (Lux)</label>
+                <input type="number" step="50" min="0" max="100000" id="cfgLowLux" value="500">
+              </div>
+
+              <div class="form-group">
+                <label for="cfgLogInterval">Interval Data Logging (Detik)</label>
+                <input type="number" step="5" min="5" max="3600" id="cfgLogInterval" value="10">
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" id="btnSaveThresholds" class="btn-primary">Simpan Konfigurasi</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="panel-box" style="margin-top: 14px;">
+            <div class="box-header-row">
+              <div>
+                <h3 class="box-title">Sesi Admin Supabase &amp; Manajemen Data</h3>
+                <p class="muted-text" id="settingsAuthSummary">Dashboard publik aktif. Login Admin diperlukan hanya untuk mengubah konfigurasi cloud atau reset data uji.</p>
+              </div>
+              <div class="auth-buttons-row">
+                <button id="btnOpenLoginModal" class="btn-primary hidden" type="button">Login Admin Supabase</button>
+                <button id="btnLogoutSupabase" class="btn-secondary hidden" type="button">Logout</button>
+                <button id="btnResetLogs" class="btn-danger hidden" type="button">Reset Data Uji</button>
+              </div>
+            </div>
+
+            <div id="simulatorLabBox" class="sim-lab-box">
+              <strong>Panel Uji Simulasi Kondisi Matahari</strong>
+              <div class="sim-buttons">
+                <button id="btnSimDark" class="btn-secondary" type="button">Malam / Mendung (150 Lux)</button>
+                <button id="btnSimNormal" class="btn-secondary" type="button">Cerah Normal (38.000 Lux)</button>
+                <button id="btnSimPeak" class="btn-danger" type="button">Terik &amp; Panas Tinggi (88.000 Lux / 62&deg;C)</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- MOBILE BOTTOM NAVIGATION BAR (5 TABS) -->
+  <nav id="mobileBottomNav" class="mobile-bottom-nav" aria-label="Navigasi Utama HP">
+    <button class="mob-nav-item active" data-page="overview" type="button">
+      <svg class="mob-svg" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"></rect><line x1="12" y1="3" x2="12" y2="21"></line></svg>
+      <span>OVERVIEW</span>
+    </button>
+    <button class="mob-nav-item" data-page="electrical" type="button">
+      <svg class="mob-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+      <span>ELECTRIC</span>
+    </button>
+    <button class="mob-nav-item" data-page="environment" type="button">
+      <svg class="mob-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M2 12h2M20 12h2"></path></svg>
+      <span>SOLAR</span>
+    </button>
+    <button class="mob-nav-item" data-page="history" type="button">
+      <svg class="mob-svg" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l4 2"></path></svg>
+      <span>HISTORY</span>
+    </button>
+    <button class="mob-nav-item" data-page="settings" type="button">
+      <svg class="mob-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      <span>SETTINGS</span>
+    </button>
+  </nav>
+
+  <!-- MODAL PANDUAN INSTALL APLIKASI -->
+  <div id="installGuideModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="installGuideTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="installGuideTitle">Install Aplikasi SolarMonitor</h3>
+        <button id="closeInstallGuideBtn" class="icon-close" type="button" aria-label="Tutup">&times;</button>
+      </div>
+      <div class="install-guide-body">
+        <p class="muted-text">
+          Browser saat ini tidak menampilkan dialog install otomatis. Gunakan salah satu langkah di bawah ini:
+        </p>
+
+        <div class="install-step-box">
+          <strong>Opsi 1: Buka di Google Chrome (Android)</strong>
+          <p>Pindahkan halaman ke Google Chrome lalu ketuk tombol <b>Install</b>:</p>
+          <button id="btnOpenInChrome" class="btn-primary" type="button" style="width: 100%; margin-top: 8px;">
+            Buka di Google Chrome
+          </button>
+        </div>
+
+        <div class="install-step-box">
+          <strong>Opsi 2: Pasang dari Menu Browser</strong>
+          <ol class="install-steps-list">
+            <li>Ketuk ikon menu browser (garis tiga di kanan bawah atau titik tiga di kanan atas).</li>
+            <li>Pilih <b>Tambahkan ke layar utama</b> (<i>Add to Home screen</i>) atau <b>Instal aplikasi</b>.</li>
+            <li>Di iPhone (Safari): ketuk tombol <b>Share</b> lalu pilih <b>Add to Home Screen</b>.</li>
+          </ol>
+        </div>
+
+        <button id="btnCopyAppLink" class="btn-secondary" type="button" style="width: 100%;">
+          Salin Link Aplikasi
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL LOGIN SUPABASE ADMIN -->
+  <div id="loginModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="loginModalTitle">Login Admin Supabase</h3>
+        <button id="closeLoginModalBtn" class="icon-close" type="button" aria-label="Tutup">&times;</button>
+      </div>
+      <form id="supabaseLoginForm">
+        <div class="form-group">
+          <label for="loginEmail">Email Admin / Operator</label>
+          <input type="email" id="loginEmail" autocomplete="email" required placeholder="admin@solarmonitor.id">
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" autocomplete="current-password" required placeholder="Password akun Supabase">
+        </div>
+        <p id="loginErrorMsg" class="error-text hidden"></p>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary" style="width: 100%;">Masuk Sebagai Admin</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="./js/config.js"></script>
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
