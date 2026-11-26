@@ -540,27 +540,27 @@ function windDirArrow(deg) {
   return dirs[idx];
 }
 
-function getWeatherSvg(code, colored = false, size = 20) {
+function getWeatherSvg(code, onLightBg = false, size = 20) {
   const c = Number(code);
   // Clear / Mostly clear
   if (c === 0 || c === 1) {
-    const fill = colored ? "#FBBF24" : "#0B111C";
+    const fill = onLightBg ? "#F59E0B" : "#FDE047";
     return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="${fill}" stroke="${fill}" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"></circle><path d="M12 2v2.2M12 19.8V22M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2 12h2.2M19.8 12H22M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6" fill="none"></path></svg>`;
   }
   // Partly cloudy
   if (c === 2) {
-    const sunFill = colored ? "#FBBF24" : "#0B111C";
-    const cloudFill = colored ? "#38BDF8" : "#0B111C";
+    const sunFill = onLightBg ? "#F59E0B" : "#FDE047";
+    const cloudFill = onLightBg ? "#2563EB" : "#FFFFFF";
     return `<svg viewBox="0 0 24 24" width="${size}" height="${size}"><circle cx="8.5" cy="9" r="3.2" fill="${sunFill}"></circle><path d="M8.5 3.5v1.3M4.2 5.2l1 1M3 9h1.3M12.8 5.2l-1 1" stroke="${sunFill}" stroke-width="1.6" stroke-linecap="round"></path><path d="M8.5 18.5h8.2a3.3 3.3 0 0 0 .4-6.58A4.6 4.6 0 0 0 8.3 10.7a3.6 3.6 0 0 0 .2 7.8z" fill="${cloudFill}"></path></svg>`;
   }
   // Rain / Drizzle / Showers / Storm
   if ((c >= 51 && c <= 67) || (c >= 80 && c <= 99)) {
-    const cloudFill = colored ? "#64748B" : "#0B111C";
-    const dropFill = colored ? "#60A5FA" : "#0B111C";
+    const cloudFill = onLightBg ? "#1E40AF" : "#E0ECFF";
+    const dropFill = onLightBg ? "#3B82F6" : "#93C5FD";
     return `<svg viewBox="0 0 24 24" width="${size}" height="${size}"><path d="M6.8 15.5h10.2a3.4 3.4 0 0 0 .4-6.78 4.8 4.8 0 0 0-9.1-1.3A3.8 3.8 0 0 0 6.8 15.5z" fill="${cloudFill}"></path><path d="M9 17.5l-1 3M13 17.5l-1 3M16.5 17.5l-1 3" stroke="${dropFill}" stroke-width="1.8" stroke-linecap="round"></path></svg>`;
   }
   // Overcast / Cloudy / Fog
-  const cloudFill = colored ? "#94A3B8" : "#0B111C";
+  const cloudFill = onLightBg ? "#64748B" : "#E2E8F0";
   return `<svg viewBox="0 0 24 24" width="${size}" height="${size}"><path d="M6.5 18h10.8a3.6 3.6 0 0 0 .4-7.18 5 5 0 0 0-9.5-1.32A4 4 0 0 0 6.5 18z" fill="${cloudFill}"></path></svg>`;
 }
 

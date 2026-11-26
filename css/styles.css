@@ -1645,28 +1645,30 @@ select:focus {
   margin-top: 10px;
 }
 
-/* ---------------- DASHBOARD DUAL-PANEL WEATHER WIDGET ---------------- */
+/* ---------------- DASHBOARD DUAL-PANEL WEATHER WIDGET (COBALT THEME) ---------------- */
 .wx-widget-shell {
-  background: #0b111c;
-  border-radius: 26px;
-  padding: 7px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-card);
+  padding: 8px;
   box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .wx-widget-shell:hover {
+  border-color: #93c5fd;
   transform: translateY(-1px);
-  box-shadow: 0 12px 28px rgba(11, 17, 28, 0.16);
+  box-shadow: 0 12px 28px rgba(30, 64, 175, 0.1);
 }
 
 .wx-widget-top {
-  background: linear-gradient(180deg, #b8cfe0 0%, #c6daea 100%);
-  color: #0b111c;
-  border-radius: 20px;
+  background: linear-gradient(135deg, var(--cobalt-deep) 0%, var(--cobalt-primary) 62%, var(--cobalt-mid) 100%);
+  color: #ffffff;
+  border-radius: 16px;
   padding: 14px 16px 13px;
   display: flex;
   flex-direction: column;
@@ -1687,10 +1689,11 @@ select:focus {
 }
 
 .wx-temp-big {
-  font-size: 40px;
-  font-weight: 500;
-  letter-spacing: -1.5px;
+  font-size: 38px;
+  font-weight: 800;
+  letter-spacing: -1.4px;
   line-height: 1;
+  color: #ffffff;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1705,24 +1708,25 @@ select:focus {
 .wx-loc-block {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: flex-end;
+  text-align: right;
   min-width: 0;
 }
 
 .wx-loc-block strong {
-  font-size: 14.5px;
+  font-size: 14px;
   font-weight: 700;
-  color: #0b111c;
+  color: #ffffff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 140px;
+  max-width: 145px;
 }
 
 .wx-loc-block span {
   font-size: 11.5px;
   font-weight: 600;
-  color: #1e293b;
+  color: #dbeafe;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -1732,6 +1736,8 @@ select:focus {
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 4px;
   text-align: center;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
 }
 
 .wx-hour-slot {
@@ -1742,9 +1748,9 @@ select:focus {
 }
 
 .wx-hour-slot span {
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 600;
-  color: #1e293b;
+  color: #bfdbfe;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1760,32 +1766,34 @@ select:focus {
 .wx-hour-slot b {
   font-size: 12px;
   font-weight: 700;
-  color: #0b111c;
+  color: #ffffff;
   font-variant-numeric: tabular-nums;
 }
 
 .wx-widget-bottom {
-  background: #151921;
-  color: #f8fafc;
-  border-radius: 20px;
-  padding: 10px 16px;
-  margin-top: 7px;
+  background: var(--bg-canvas);
+  color: var(--text-main);
+  border: 1px solid var(--border-hairline);
+  border-radius: 16px;
+  padding: 10px 14px;
+  margin-top: 8px;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 6px;
 }
 
 .wx-day-row {
   display: grid;
-  grid-template-columns: 1.5fr 28px 54px 66px;
+  grid-template-columns: 1.4fr 28px 54px 66px;
   align-items: center;
   gap: 6px;
   font-size: 12.5px;
+  padding: 2px 0;
 }
 
 .wx-day-name {
-  font-weight: 500;
-  color: #e2e8f0;
+  font-weight: 600;
+  color: var(--text-main);
   white-space: nowrap;
 }
 
@@ -1797,8 +1805,8 @@ select:focus {
 
 .wx-day-wind {
   font-size: 11.5px;
-  font-weight: 500;
-  color: #cbd5e1;
+  font-weight: 600;
+  color: var(--cobalt-primary);
   font-variant-numeric: tabular-nums;
   text-align: center;
   white-space: nowrap;
@@ -1812,11 +1820,11 @@ select:focus {
 }
 
 .wx-day-temps .low {
-  color: #64748b;
+  color: var(--text-muted);
   font-weight: 600;
 }
 
 .wx-day-temps .high {
-  color: #f8fafc;
-  font-weight: 700;
+  color: var(--text-main);
+  font-weight: 800;
 }
