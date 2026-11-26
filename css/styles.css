@@ -1538,4 +1538,104 @@ select:focus {
   .hero-sub-split {
     grid-template-columns: 1fr;
   }
+  .weather-grid-4,
+  .weather-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .page-head-actions {
+    flex-wrap: wrap;
+  }
+}
+
+/* ---------------- WEATHER & VALIDATION CARDS ---------------- */
+.weather-mini-pill {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 10px;
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--cobalt-soft);
+  color: var(--cobalt-primary);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.weather-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.wx-metric-box {
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-hairline);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wx-metric-box span {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.wx-metric-box strong {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
+
+.wx-footer-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 14px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-hairline);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.wx-compare-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.wx-compare-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px;
+  border-radius: 14px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-hairline);
+  font-size: 12.5px;
+}
+
+.wx-compare-row span {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.wx-compare-row strong {
+  color: var(--cobalt-primary);
+  font-weight: 800;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.weather-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 10px;
 }

@@ -16,6 +16,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./css/styles.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
 </head>
 <body>
   <div class="app-shell">
@@ -165,6 +168,7 @@
                 </svg>
                 <span>Sync Data</span>
               </button>
+              <button id="btnDashExportPdf" class="btn-outline-pill" type="button">Export PDF</button>
               <button id="btnDashExportCsv" class="btn-outline-pill" type="button">Export CSV</button>
             </div>
           </div>
@@ -264,6 +268,7 @@
                   <span id="ovTempPanel">--</span><small>&deg;C</small>
                 </div>
                 <p id="ovTempHint" class="thermal-meta">Sensor DS18B20 (GPIO 4) &middot; Alarm &ge; 60&deg;C</p>
+                <div id="ovWeatherMini" class="weather-mini-pill">Cuaca Luar: Memuat...</div>
               </div>
               <button class="btn-cobalt-pill full-w" data-goto="environment" type="button">
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path></svg>
@@ -522,6 +527,61 @@
               <canvas id="environmentChart"></canvas>
             </div>
           </div>
+
+          <div class="two-col-layout" style="margin-top: 16px;">
+            <div class="card-surface">
+              <div class="card-header-row">
+                <div>
+                  <h3 class="card-title" style="margin-bottom: 2px;">Cuaca Outdoor (Open-Meteo)</h3>
+                  <span id="wxLocationLabel" class="muted-text" style="font-size: 12px;">Yogyakarta (-7.7956, 110.3695)</span>
+                </div>
+                <button id="btnRefreshWeather" class="outline-chip clickable" type="button">Refresh Cuaca</button>
+              </div>
+              <div class="weather-grid-4">
+                <div class="wx-metric-box">
+                  <span>Kondisi Langit</span>
+                  <strong id="wxCondition">--</strong>
+                </div>
+                <div class="wx-metric-box">
+                  <span>Suhu Udara Luar</span>
+                  <strong id="wxAmbientTemp">-- &deg;C</strong>
+                </div>
+                <div class="wx-metric-box">
+                  <span>Tutupan Awan</span>
+                  <strong id="wxCloudCover">-- %</strong>
+                </div>
+                <div class="wx-metric-box">
+                  <span>Radiasi Surya</span>
+                  <strong id="wxRadiation">-- W/m&sup2;</strong>
+                </div>
+              </div>
+              <div class="wx-footer-meta">
+                <span>Kelembapan: <b id="wxHumidity">--%</b></span>
+                <span>Angin: <b id="wxWind">-- km/h</b></span>
+                <span id="wxUpdatedAt">Update: --</span>
+              </div>
+            </div>
+
+            <div class="card-surface">
+              <div class="card-header-row">
+                <h3 class="card-title">Validasi Sensor Lapangan vs Cuaca</h3>
+                <span id="wxValidationBadge" class="soft-chip">Menunggu data</span>
+              </div>
+              <div class="wx-compare-list">
+                <div class="wx-compare-row">
+                  <span>Selisih Termal Panel (&Delta;T)</span>
+                  <strong id="wxDeltaTemp">--</strong>
+                </div>
+                <div class="wx-compare-row">
+                  <span>Kesesuaian Cahaya (BH1750 vs Awan)</span>
+                  <strong id="wxLightInsight">--</strong>
+                </div>
+                <p id="wxInsightSummary" class="muted-text" style="margin-top: 8px; font-size: 12.5px; line-height: 1.5;">
+                  Membandingkan pembacaan sensor fisik (BH1750 &amp; DS18B20) dengan kondisi atmosfer luar dari Open-Meteo.
+                </p>
+              </div>
+            </div>
+          </div>
         </section>
 
         <!-- ==================== HALAMAN 4: HISTORY & LOGS ==================== -->
@@ -529,10 +589,12 @@
           <div class="page-head-row">
             <div>
               <h2 class="page-h1">History &amp; Logs</h2>
-              <p class="page-sub">Analisis historis, kalkulasi energi periode, tabel data logging, dan export CSV.</p>
+              <p class="page-sub">Analisis historis, kalkulasi energi periode, tabel data logging, dan export laporan PDF, Excel, serta CSV.</p>
             </div>
             <div class="page-head-actions">
-              <button id="btnExportCsv" class="btn-cobalt-pill" type="button">Export CSV</button>
+              <button id="btnExportPdf" class="btn-cobalt-pill" type="button">Export PDF</button>
+              <button id="btnExportExcel" class="btn-outline-pill" type="button">Export Excel</button>
+              <button id="btnExportCsv" class="btn-outline-pill" type="button">Export CSV</button>
             </div>
           </div>
 
@@ -736,6 +798,33 @@
               </div>
             </div>
           </div>
+
+          <form id="weatherLocationForm" class="card-surface form-card" style="margin-top: 16px;">
+            <div class="card-header-row">
+              <div>
+                <h3 class="card-title" style="margin-bottom: 4px;">Lokasi Cuaca Outdoor (Open-Meteo API)</h3>
+                <p class="muted-text" style="font-size: 12.5px;">Digunakan untuk menarik data tutupan awan, suhu udara, dan radiasi surya eksternal sebagai pembanding sensor.</p>
+              </div>
+              <button id="btnDetectGps" class="btn-outline-pill" type="button">Gunakan Lokasi GPS</button>
+            </div>
+            <div class="weather-form-grid">
+              <div class="form-group">
+                <label for="cfgWeatherName">Nama Lokasi</label>
+                <input type="text" id="cfgWeatherName" placeholder="Yogyakarta (UNY)">
+              </div>
+              <div class="form-group">
+                <label for="cfgWeatherLat">Latitude</label>
+                <input type="number" step="0.0001" id="cfgWeatherLat" placeholder="-7.7956">
+              </div>
+              <div class="form-group">
+                <label for="cfgWeatherLon">Longitude</label>
+                <input type="number" step="0.0001" id="cfgWeatherLon" placeholder="110.3695">
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn-cobalt-pill">Simpan Lokasi Cuaca</button>
+            </div>
+          </form>
         </section>
       </main>
     </div>

@@ -14,7 +14,10 @@ const defaultSettings = {
   mode: window.APP_CONFIG?.mode || "supabase",
   supabaseUrl: window.APP_CONFIG?.supabase?.url || "",
   supabaseAnonKey: window.APP_CONFIG?.supabase?.anonKey || "",
-  deviceId: window.APP_CONFIG?.supabase?.deviceId || "ESP32_SOLAR_01"
+  deviceId: window.APP_CONFIG?.supabase?.deviceId || "ESP32_SOLAR_01",
+  weatherLat: -7.7956,
+  weatherLon: 110.3695,
+  weatherLocationName: "Yogyakarta"
 };
 
 function createEmptyTelemetry() {
@@ -56,7 +59,20 @@ const appState = {
   historyLogs: [],
   filteredHistory: [],
   activityLogs: [],
-  simPreset: "normal"
+  simPreset: "normal",
+  weather: {
+    loaded: false,
+    loading: false,
+    error: null,
+    tempC: null,
+    humidity: null,
+    cloudCover: null,
+    radiationWm2: null,
+    windKmh: null,
+    weatherCode: null,
+    conditionText: "--",
+    updatedAt: null
+  }
 };
 
 let supabaseClient = null;
@@ -500,7 +516,134 @@ function renderAll() {
 
   renderOverviewRecentLogs();
   renderActivityFeed();
+  renderWeatherUI();
   evaluateAlerts();
+}
+
+function describeWmoWeather(code) {
+  const c = Number(code);
+  if (c === 0) return "Cerah";
+  if (c === 1) return "Umumnya Cerah";
+  if (c === 2) return "Cerah Berawan";
+  if (c === 3) return "Mendung";
+  if (c === 45 || c === 48) return "Berkabut";
+  if (c >= 51 && c <= 57) return "Gerimis";
+  if (c >= 61 && c <= 65) return "Hujan";
+  if (c >= 80 && c <= 82) return "Hujan Lokal";
+  if (c >= 95) return "Badai Petir";
+  return "Berawan";
+}
+
+async function fetchWeatherData() {
+  const lat = Number(appState.settings.weatherLat);
+  const lon = Number(appState.settings.weatherLon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+
+  appState.weather.loading = true;
+  appState.weather.error = null;
+  renderWeatherUI();
+
+  try {
+    const url =
+      `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}` +
+      `&current=temperature_2m,relative_humidity_2m,cloud_cover,weather_code,shortwave_radiation,wind_speed_10m&timezone=auto`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const cur = data?.current || {};
+
+    appState.weather = {
+      loaded: true,
+      loading: false,
+      error: null,
+      tempC: Number(cur.temperature_2m),
+      humidity: Number(cur.relative_humidity_2m),
+      cloudCover: Number(cur.cloud_cover),
+      radiationWm2: Number(cur.shortwave_radiation),
+      windKmh: Number(cur.wind_speed_10m),
+      weatherCode: cur.weather_code,
+      conditionText: describeWmoWeather(cur.weather_code),
+      updatedAt: new Date()
+    };
+  } catch (err) {
+    appState.weather.loading = false;
+    appState.weather.error = err?.message || "Gagal memuat cuaca";
+  }
+
+  renderWeatherUI();
+}
+
+function renderWeatherUI() {
+  const w = appState.weather;
+  const s = appState.settings;
+  const locName = s.weatherLocationName || "Lokasi Panel";
+  setText("wxLocationLabel", `${locName} (${Number(s.weatherLat).toFixed(4)}, ${Number(s.weatherLon).toFixed(4)})`);
+
+  if (w.loading && !w.loaded) {
+    setText("ovWeatherMini", "Cuaca Luar: Memuat...");
+    setText("wxCondition", "Memuat...");
+    return;
+  }
+
+  if (w.error && !w.loaded) {
+    setText("ovWeatherMini", "Cuaca Luar: Offline");
+    setText("wxCondition", "Gagal memuat");
+    setText("wxValidationBadge", "API Offline");
+    return;
+  }
+
+  if (!w.loaded) return;
+
+  setText("ovWeatherMini", `Udara Luar: ${formatNum(w.tempC, 1)} C - ${w.conditionText}`);
+  setText("wxCondition", w.conditionText);
+  setText("wxAmbientTemp", `${formatNum(w.tempC, 1)} °C`);
+  setText("wxCloudCover", `${Math.round(w.cloudCover)} %`);
+  setText("wxRadiation", `${Math.round(w.radiationWm2)} W/m²`);
+  setText("wxHumidity", `${Math.round(w.humidity)}%`);
+  setText("wxWind", `${formatNum(w.windKmh, 1)} km/h`);
+  setText("wxUpdatedAt", w.updatedAt ? `Update: ${formatTime(w.updatedAt)}` : "Update: --");
+
+  const t = appState.telemetry;
+  const hasData = isDeviceOnline() || Boolean(t && t.last_seen_at);
+
+  // Perbandingan suhu panel (DS18B20) vs suhu udara luar (Open-Meteo)
+  if (hasData && t.temp_ok && Number.isFinite(w.tempC)) {
+    const deltaT = Number(t.temperature) - w.tempC;
+    const sign = deltaT >= 0 ? "+" : "";
+    setText("wxDeltaTemp", `${sign}${deltaT.toFixed(1)} °C`);
+  } else {
+    setText("wxDeltaTemp", "--");
+  }
+
+  // Validasi cahaya BH1750 vs tutupan awan & radiasi Open-Meteo
+  if (!hasData || !t.bh_ok) {
+    setText("wxLightInsight", "Menunggu sensor");
+    setText("wxValidationBadge", "Standby");
+    setText("wxInsightSummary", "Menunggu pembacaan aktif BH1750 & DS18B20 untuk dibandingkan dengan data cuaca luar.");
+    return;
+  }
+
+  const luxVal = Number(t.lux) || 0;
+  const rad = Number(w.radiationWm2) || 0;
+  const clouds = Number(w.cloudCover) || 0;
+
+  if (rad < 20) {
+    setText("wxLightInsight", "Malam / Gelap");
+    setText("wxValidationBadge", "Selaras (Malam)");
+    setText("wxInsightSummary", `Radiasi surya eksternal ${Math.round(rad)} W/m2 (malam atau matahari terbenam), selaras dengan BH1750 (${Math.round(luxVal)} Lux).`);
+  } else if (luxVal < 500 && clouds < 40 && rad >= 200) {
+    setText("wxLightInsight", "Potensi Bayangan");
+    setText("wxValidationBadge", "Cek Penghalang");
+    setText("wxInsightSummary", `Langit cukup cerah (awan ${Math.round(clouds)}%, radiasi ${Math.round(rad)} W/m2), tetapi BH1750 hanya terbaca ${Math.round(luxVal)} Lux. Cek kemungkinan bayangan atau lokasi sensor indoor.`);
+  } else if (luxVal < 2000 && clouds >= 60) {
+    setText("wxLightInsight", "Selaras (Mendung)");
+    setText("wxValidationBadge", "Selaras");
+    setText("wxInsightSummary", `Intensitas rendah (${Math.round(luxVal)} Lux) selaras dengan tutupan awan ${Math.round(clouds)}% (${w.conditionText}).`);
+  } else {
+    setText("wxLightInsight", "Selaras (Optimal)");
+    setText("wxValidationBadge", "Selaras");
+    setText("wxInsightSummary", `Pembacaan BH1750 (${Math.round(luxVal).toLocaleString("id-ID")} Lux) sesuai dengan radiasi luar ${Math.round(rad)} W/m2 dan awan ${Math.round(clouds)}%.`);
+  }
 }
 
 function renderTopbarBadges() {
@@ -1069,35 +1212,251 @@ function renderHistoryTable(rows) {
   });
 }
 
-async function exportHistoryCsv() {
+function formatExportTimestamp(isoStr) {
+  const d = new Date(isoStr);
+  if (Number.isNaN(d.getTime())) return String(isoStr || "--");
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function getTelemetryStatusLabels(row) {
+  const temp = Number(row.temperature) || 0;
+  const lux = Number(row.lux) || 0;
+  const warnTh = Number(appState.config.temp_threshold_warn) || 45;
+  const alarmTh = Number(appState.config.temp_threshold_alarm) || 60;
+  const lowLux = Number(appState.config.low_lux_threshold) || 500;
+
+  const tempStatus = temp >= alarmTh ? "Overheat" : temp >= warnTh ? "Hangat" : "Normal";
+  const lightStatus = lux < 50 ? "Gelap" : lux < lowLux ? "Redup" : "Cerah";
+  return { tempStatus, lightStatus };
+}
+
+async function getExportRowsOrAlert() {
   let rows = appState.filteredHistory || [];
   if (rows.length === 0) {
     rows = await loadHistoryData();
   }
   if (!rows || rows.length === 0) {
     alert("Tidak ada data logging untuk diexport.");
-    return;
+    return null;
   }
+  return rows;
+}
+
+function csvCell(val) {
+  const str = String(val ?? "");
+  return `"${str.replace(/"/g, '""')}"`;
+}
+
+async function exportHistoryCsv() {
+  const rows = await getExportRowsOrAlert();
+  if (!rows) return;
 
   const headers = [
-    "recorded_at", "voltage_V", "current_mA", "power_W", "energy_Wh", "lux", "temperature_C"
+    "No",
+    "Waktu (WIB)",
+    "Device ID",
+    "Tegangan (V)",
+    "Arus (mA)",
+    "Daya (W)",
+    "Daya (mW)",
+    "Energi Akumulasi (Wh)",
+    "Cahaya (Lux)",
+    "Suhu Panel (C)",
+    "Status Suhu",
+    "Kondisi Cahaya"
   ];
 
   const lines = [
-    headers.join(","),
-    ...rows.map((r) =>
-      [r.recorded_at, r.voltage, r.current_ma, r.power_w, r.energy_wh, r.lux, r.temperature].join(",")
-    )
+    headers.map(csvCell).join(","),
+    ...rows.map((r, idx) => {
+      const v = Number(r.voltage) || 0;
+      const ma = Number(r.current_ma) || 0;
+      const pw = Number(r.power_w) || 0;
+      const wh = Number(r.energy_wh) || 0;
+      const lux = Number(r.lux) || 0;
+      const temp = Number(r.temperature) || 0;
+      const { tempStatus, lightStatus } = getTelemetryStatusLabels(r);
+      return [
+        idx + 1,
+        formatExportTimestamp(r.recorded_at),
+        appState.settings.deviceId,
+        v.toFixed(3),
+        ma.toFixed(2),
+        pw.toFixed(4),
+        (pw * 1000).toFixed(2),
+        wh.toFixed(4),
+        Math.round(lux),
+        temp.toFixed(2),
+        tempStatus,
+        lightStatus
+      ].map(csvCell).join(",");
+    })
   ];
 
   const bom = "\uFEFF";
-  const blob = new Blob([bom + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+  const blob = new Blob([bom + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = `solarmon_${appState.settings.deviceId}_${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+async function exportHistoryExcel() {
+  const rows = await getExportRowsOrAlert();
+  if (!rows) return;
+
+  if (typeof window.XLSX === "undefined") {
+    alert("Library Excel belum siap. Menggunakan format CSV rapi sebagai cadangan.");
+    await exportHistoryCsv();
+    return;
+  }
+
+  const peakPower = Math.max(...rows.map((r) => Number(r.power_w) || 0));
+  const avgLux = rows.reduce((s, r) => s + (Number(r.lux) || 0), 0) / rows.length;
+  const avgTemp = rows.reduce((s, r) => s + (Number(r.temperature) || 0), 0) / rows.length;
+  const firstE = Number(rows[0].energy_wh) || 0;
+  const lastE = Number(rows[rows.length - 1].energy_wh) || 0;
+  const deltaE = Math.max(0, lastE - firstE);
+  const wx = appState.weather;
+
+  const summaryRows = [
+    ["LAPORAN MONITORING PANEL SURYA (SOLARMONITOR)"],
+    ["Device ID", appState.settings.deviceId],
+    ["Tanggal Cetak", formatExportTimestamp(new Date().toISOString())],
+    ["Rentang Waktu", document.getElementById("historyRangeSelect")?.selectedOptions?.[0]?.text || "24 Jam Terakhir"],
+    ["Jumlah Sampel", rows.length],
+    ["Daya Puncak (W)", Number(peakPower.toFixed(4))],
+    ["Energi Periode (Wh)", Number(deltaE.toFixed(4))],
+    ["Rata-rata Cahaya (Lux)", Math.round(avgLux)],
+    ["Rata-rata Suhu Panel (C)", Number(avgTemp.toFixed(2))],
+    ["Lokasi Cuaca Outdoor", appState.settings.weatherLocationName || "Yogyakarta"],
+    ["Cuaca Eksternal (Open-Meteo)", wx.loaded ? `${wx.conditionText}, Suhu Udara ${formatNum(wx.tempC, 1)} C, Awan ${Math.round(wx.cloudCover)}%, Radiasi ${Math.round(wx.radiationWm2)} W/m2` : "Belum dimuat"]
+  ];
+
+  const dataRows = rows.map((r, idx) => {
+    const pw = Number(r.power_w) || 0;
+    const { tempStatus, lightStatus } = getTelemetryStatusLabels(r);
+    return {
+      "No": idx + 1,
+      "Waktu (WIB)": formatExportTimestamp(r.recorded_at),
+      "Tegangan (V)": Number((Number(r.voltage) || 0).toFixed(3)),
+      "Arus (mA)": Number((Number(r.current_ma) || 0).toFixed(2)),
+      "Daya (W)": Number(pw.toFixed(4)),
+      "Daya (mW)": Number((pw * 1000).toFixed(2)),
+      "Energi (Wh)": Number((Number(r.energy_wh) || 0).toFixed(4)),
+      "Cahaya (Lux)": Math.round(Number(r.lux) || 0),
+      "Suhu Panel (C)": Number((Number(r.temperature) || 0).toFixed(2)),
+      "Status Suhu": tempStatus,
+      "Kondisi Cahaya": lightStatus
+    };
+  });
+
+  const wb = window.XLSX.utils.book_new();
+  const wsSummary = window.XLSX.utils.aoa_to_sheet(summaryRows);
+  wsSummary["!cols"] = [{ wch: 28 }, { wch: 56 }];
+  window.XLSX.utils.book_append_sheet(wb, wsSummary, "Ringkasan");
+
+  const wsData = window.XLSX.utils.json_to_sheet(dataRows);
+  wsData["!cols"] = [
+    { wch: 6 },
+    { wch: 21 },
+    { wch: 14 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 13 },
+    { wch: 14 },
+    { wch: 16 },
+    { wch: 13 },
+    { wch: 15 }
+  ];
+  window.XLSX.utils.book_append_sheet(wb, wsData, "Log Telemetry");
+
+  window.XLSX.writeFile(wb, `solarmon_${appState.settings.deviceId}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+async function exportHistoryPdf() {
+  const rows = await getExportRowsOrAlert();
+  if (!rows) return;
+
+  const jsPDFCtor = window.jspdf?.jsPDF;
+  if (!jsPDFCtor) {
+    alert("Library PDF belum selesai dimuat. Pastikan koneksi internet aktif lalu coba lagi.");
+    return;
+  }
+
+  const doc = new jsPDFCtor({ orientation: "portrait", unit: "mm", format: "a4" });
+  const peakPower = Math.max(...rows.map((r) => Number(r.power_w) || 0));
+  const avgLux = rows.reduce((s, r) => s + (Number(r.lux) || 0), 0) / rows.length;
+  const avgTemp = rows.reduce((s, r) => s + (Number(r.temperature) || 0), 0) / rows.length;
+  const firstE = Number(rows[0].energy_wh) || 0;
+  const lastE = Number(rows[rows.length - 1].energy_wh) || 0;
+  const deltaE = Math.max(0, lastE - firstE);
+  const rangeText = document.getElementById("historyRangeSelect")?.selectedOptions?.[0]?.text || "24 Jam Terakhir";
+  const wx = appState.weather;
+
+  // Cobalt Blue Header Banner
+  doc.setFillColor(30, 64, 175);
+  doc.rect(0, 0, 210, 30, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text("Laporan Monitoring Panel Surya - SolarMonitor", 14, 13);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9.5);
+  doc.text(`Device: ${appState.settings.deviceId}  |  Periode: ${rangeText}  |  Dicetak: ${formatExportTimestamp(new Date().toISOString())}`, 14, 21);
+
+  // Summary Metrics Box
+  doc.setTextColor(15, 23, 42);
+  doc.setFillColor(239, 244, 255);
+  doc.roundedRect(14, 36, 182, 24, 3, 3, "F");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9.5);
+  doc.text(`Daya Puncak: ${formatSmartWatt(peakPower)} W`, 18, 44);
+  doc.text(`Energi Periode: ${formatSmartWatt(deltaE)} Wh`, 78, 44);
+  doc.text(`Total Sampel: ${rows.length} log`, 145, 44);
+
+  doc.setFont("helvetica", "normal");
+  doc.text(`Rata-rata Cahaya: ${Math.round(avgLux).toLocaleString("id-ID")} Lux`, 18, 51);
+  doc.text(`Rata-rata Suhu Panel: ${avgTemp.toFixed(1)} C`, 78, 51);
+  const wxSummary = wx.loaded
+    ? `Cuaca (${appState.settings.weatherLocationName}): ${wx.conditionText}, ${formatNum(wx.tempC, 1)} C, Awan ${Math.round(wx.cloudCover)}%, Radiasi ${Math.round(wx.radiationWm2)} W/m2`
+    : `Lokasi: ${appState.settings.weatherLocationName || "Yogyakarta"} (Cuaca eksternal belum dimuat)`;
+  doc.text(wxSummary, 18, 57);
+
+  // Table (max 250 latest rows so PDF remains crisp and fast)
+  const pdfRows = rows.slice(-250).reverse().map((r, idx) => {
+    const pw = Number(r.power_w) || 0;
+    const { tempStatus } = getTelemetryStatusLabels(r);
+    return [
+      idx + 1,
+      formatExportTimestamp(r.recorded_at),
+      formatNum(r.voltage, 2),
+      formatNum(r.current_ma, 2),
+      formatSmartWatt(pw),
+      Math.round(Number(r.lux) || 0).toLocaleString("id-ID"),
+      formatNum(r.temperature, 1),
+      tempStatus
+    ];
+  });
+
+  if (typeof doc.autoTable === "function") {
+    doc.autoTable({
+      startY: 66,
+      head: [["No", "Waktu (WIB)", "Teg (V)", "Arus (mA)", "Daya (W)", "Cahaya (Lux)", "Suhu (C)", "Status"]],
+      body: pdfRows,
+      styles: { fontSize: 8, cellPadding: 2.2, textColor: [15, 23, 42] },
+      headStyles: { fillColor: [30, 64, 175], textColor: [255, 255, 255], fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      margin: { left: 14, right: 14 }
+    });
+  }
+
+  doc.save(`Laporan_SolarMonitor_${appState.settings.deviceId}_${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
 // ----------------------------------------------------------------------------
@@ -1109,6 +1468,12 @@ function syncSettingsForm() {
   document.getElementById("cfgSupabaseUrl").value = s.supabaseUrl;
   document.getElementById("cfgSupabaseKey").value = s.supabaseAnonKey;
   document.getElementById("cfgDeviceId").value = s.deviceId;
+  const wxNameEl = document.getElementById("cfgWeatherName");
+  const wxLatEl = document.getElementById("cfgWeatherLat");
+  const wxLonEl = document.getElementById("cfgWeatherLon");
+  if (wxNameEl) wxNameEl.value = s.weatherLocationName || "Yogyakarta";
+  if (wxLatEl) wxLatEl.value = s.weatherLat ?? -7.7956;
+  if (wxLonEl) wxLonEl.value = s.weatherLon ?? 110.3695;
 
   toggleBackendFields(s.mode);
   syncThresholdInputs();
@@ -1206,7 +1571,55 @@ function bindEvents() {
     document.getElementById(id)?.addEventListener("click", triggerManualSync);
   });
   document.getElementById("btnDashExportCsv")?.addEventListener("click", exportHistoryCsv);
+  document.getElementById("btnDashExportPdf")?.addEventListener("click", exportHistoryPdf);
   document.getElementById("btnExportCsv")?.addEventListener("click", exportHistoryCsv);
+  document.getElementById("btnExportExcel")?.addEventListener("click", exportHistoryExcel);
+  document.getElementById("btnExportPdf")?.addEventListener("click", exportHistoryPdf);
+  document.getElementById("btnRefreshWeather")?.addEventListener("click", fetchWeatherData);
+
+  document.getElementById("weatherLocationForm")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const lat = Number(document.getElementById("cfgWeatherLat")?.value);
+    const lon = Number(document.getElementById("cfgWeatherLon")?.value);
+    const name = document.getElementById("cfgWeatherName")?.value.trim() || "Lokasi Panel";
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+      alert("Masukkan nilai Latitude dan Longitude yang valid.");
+      return;
+    }
+    saveSettingsToStorage({
+      weatherLocationName: name,
+      weatherLat: lat,
+      weatherLon: lon
+    });
+    fetchWeatherData();
+    alert("Lokasi cuaca outdoor berhasil diperbarui.");
+  });
+
+  document.getElementById("btnDetectGps")?.addEventListener("click", () => {
+    if (!navigator.geolocation) {
+      alert("Browser Anda tidak mendukung GPS Geolocation.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = Number(pos.coords.latitude.toFixed(4));
+        const lon = Number(pos.coords.longitude.toFixed(4));
+        document.getElementById("cfgWeatherLat").value = lat;
+        document.getElementById("cfgWeatherLon").value = lon;
+        document.getElementById("cfgWeatherName").value = "Lokasi GPS Saat Ini";
+        saveSettingsToStorage({
+          weatherLocationName: "Lokasi GPS Saat Ini",
+          weatherLat: lat,
+          weatherLon: lon
+        });
+        fetchWeatherData();
+      },
+      (err) => {
+        alert("Gagal mendeteksi lokasi GPS: " + (err?.message || "Izin ditolak"));
+      },
+      { enableHighAccuracy: false, timeout: 8000 }
+    );
+  });
 
   // Pause / Resume auto-sync (Uptime Tracker button)
   document.getElementById("btnToggleSync")?.addEventListener("click", () => {
@@ -1426,6 +1839,8 @@ document.addEventListener("DOMContentLoaded", () => {
   bindEvents();
   initPwaSupport();
   startActiveBackend();
+  fetchWeatherData();
+  setInterval(fetchWeatherData, 10 * 60 * 1000);
 
   heartbeatTimerId = setInterval(() => {
     const currentlyOnline = isDeviceOnline();
