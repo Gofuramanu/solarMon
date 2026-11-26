@@ -8,6 +8,7 @@
 #include <DallasTemperature.h>
 #include <LiquidCrystal_I2C.h>
 #include <esp_task_wdt.h>
+#include <math.h>
 
 // Gunakan config.h lokal jika tersedia, atau fallback ke config.example.h
 #if __has_include("config.h")
@@ -19,10 +20,6 @@
 // ==========================================
 // 1. INISIALISASI KOMPONEN HARDWARE
 // ==========================================
-// Pinout tetap sesuai rangkaian asli:
-// - INA219 (0x40), BH1750 (0x23/0x5C), LCD 16x2 (0x27) -> SDA: GPIO 21, SCL: GPIO 22
-// - DS18B20 Waterproof -> 1-Wire: GPIO 4 (+ resistor pull-up 4.7k Ohm ke 3V3)
-
 Adafruit_INA219 ina219;
 BH1750 lightMeter;
 
@@ -34,6 +31,8 @@ LiquidCrystal_I2C lcd(LCD_ADDRESS, 16, 2);
 // ==========================================
 // 2. VARIABEL SENSOR & STATUS JARINGAN
 // ==========================================
+float busVoltage = 0.0f;
+float shuntVoltageMv = 0.0f;
 float voltage = 0.0f;
 float currentMa = 0.0f;
 float powerMw = 0.0f;
@@ -47,7 +46,7 @@ bool tempOK = false;
 String apiStatusText = "WAIT";
 
 // ==========================================
-// 3. VARIABEL WAKTU (NON-BLOCKING)
+// 3. VARIABEL WAKTU
 // ==========================================
 unsigned long previousSensor = 0;
 unsigned long previousLCD = 0;
@@ -56,7 +55,7 @@ unsigned long lastWifiAttempt = 0;
 int lcdPage = 0;
 
 // ==========================================
-// 4. KONEKSI WI-FI NON-BLOCKING
+// 4. KONEKSI WI-FI
 // ==========================================
 void connectWiFiInitial() {
   Serial.print("[WiFi] Menghubungkan ke ");
@@ -67,9 +66,9 @@ void connectWiFiInitial() {
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   unsigned long startAttempt = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - startAttempt < 10000) {
+  while (WiFi.status() != WL_CONNECTED && millis() - startAttempt < 12000) {
     esp_task_wdt_reset();
-    delay(250);
+    delay(500);
     Serial.print(".");
   }
   Serial.println();
@@ -78,7 +77,7 @@ void connectWiFiInitial() {
     Serial.print("[WiFi] Terhubung! IP ESP32: ");
     Serial.println(WiFi.localIP());
   } else {
-    Serial.println("[WiFi] Belum terhubung, akan dicoba ulang di background.");
+    Serial.println("[WiFi] Gagal terhubung, akan dicoba ulang.");
   }
 }
 
@@ -87,14 +86,13 @@ void maintainWiFi() {
   unsigned long now = millis();
   if (now - lastWifiAttempt >= 10000UL) {
     lastWifiAttempt = now;
-    Serial.println("[WiFi] Mencoba menghubungkan ulang...");
     WiFi.disconnect(false);
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   }
 }
 
 // ==========================================
-// 5. PEMINDAIAN & PEMBACAAN SENSOR
+// 5. PEMBACAAN SENSOR (TANPA MEMOTONG ARUS KE NOL)
 // ==========================================
 void scanI2CBus() {
   Serial.println("[I2C] Memindai perangkat pada SDA=21, SCL=22...");
@@ -122,7 +120,7 @@ void scanI2CBus() {
   }
 
   if (foundCount == 0) {
-    Serial.println("[I2C] TIDAK ADA perangkat I2C terdeteksi! Cek kabel SDA(21), SCL(22), 3V3, GND.");
+    Serial.println("[I2C] TIDAK ADA perangkat I2C terdeteksi! Cek kabel SDA(21), SCL(22), 3V3, dan GND.");
   }
 }
 
@@ -130,7 +128,8 @@ void initSensors() {
   if (!inaOK) {
     inaOK = ina219.begin();
     if (inaOK) {
-      ina219.setCalibration_32V_2A();
+      // Kalibrasi peka untuk panel surya 5V arus kecil agar mA dan mV terbaca detail
+      ina219.setCalibration_16V_400mA();
       Serial.println("[INIT] INA219 BERHASIL (0x40)");
     }
   }
@@ -153,24 +152,24 @@ void readSensors() {
 
   // -------- INA219 --------
   if (inaOK) {
-    float busVoltage = ina219.getBusVoltage_V();
-    float shuntVoltage = ina219.getShuntVoltage_mV() / 1000.0f;
+    float rawBus = ina219.getBusVoltage_V();
+    float rawShunt = ina219.getShuntVoltage_mV();
     float rawCurrent = ina219.getCurrent_mA();
 
-    if (isnan(busVoltage) || isnan(rawCurrent)) {
+    if (isnan(rawBus) || isnan(rawCurrent)) {
       inaOK = false;
+      busVoltage = 0.0f;
+      shuntVoltageMv = 0.0f;
       voltage = 0.0f;
       currentMa = 0.0f;
       powerMw = 0.0f;
       powerWatt = 0.0f;
     } else {
-      voltage = busVoltage + shuntVoltage;
-      currentMa = rawCurrent;
-      if (voltage < 0.0f && voltage > -0.2f) voltage = 0.0f;
-      if (currentMa < 0.0f && currentMa > -2.0f) currentMa = 0.0f;
-      if (voltage < 0.0f) voltage = 0.0f;
-      if (currentMa < 0.0f) currentMa = 0.0f;
-
+      busVoltage = fabs(rawBus);
+      shuntVoltageMv = rawShunt;
+      // Gunakan fabs() agar arus tidak terpotong jadi 0.00 saat arah kabel VIN+/VIN- bernilai minus
+      voltage = fabs(busVoltage + (rawShunt / 1000.0f));
+      currentMa = fabs(rawCurrent);
       powerMw = voltage * currentMa;
       powerWatt = powerMw / 1000.0f;
     }
@@ -193,42 +192,43 @@ void readSensors() {
     }
   }
 
-  // -------- SERIAL MONITOR --------
+  // ========================================
+  // SERIAL MONITOR (LENGKAP SEMUA PARAMETER)
+  // ========================================
   Serial.println();
   Serial.println("================================");
   Serial.println("     SOLAR PANEL MONITORING");
   Serial.println("================================");
-  Serial.printf("Tegangan   : %s\n", inaOK ? (String(voltage, 2) + " V").c_str() : "Sensor Error");
-  Serial.printf("Arus       : %s\n", inaOK ? (String(currentMa, 1) + " mA").c_str() : "Sensor Error");
-  Serial.printf("Daya       : %s\n", inaOK ? (String(powerWatt, 3) + " W (" + String(powerMw, 1) + " mW)").c_str() : "Sensor Error");
-  Serial.printf("Suhu Panel : %s\n", tempOK ? (String(temperature, 1) + " C").c_str() : "Sensor Error");
-  Serial.printf("Cahaya     : %s\n", bhOK ? (String(lux, 0) + " Lux").c_str() : "Sensor Error");
-  Serial.printf("WiFi/Cloud : %s / %s\n", WiFi.status() == WL_CONNECTED ? "CONNECTED" : "OFFLINE", apiStatusText.c_str());
+  Serial.printf("Tegangan Bus   : %.3f V\n", busVoltage);
+  Serial.printf("Tegangan Shunt : %.3f mV\n", shuntVoltageMv);
+  Serial.printf("Tegangan Panel : %.3f V\n", voltage);
+  Serial.printf("Arus           : %.3f mA\n", currentMa);
+  Serial.printf("Daya           : %.3f mW (%.4f W)\n", powerMw, powerWatt);
+  Serial.printf("Suhu           : %.2f C\n", temperature);
+  Serial.printf("Intensitas     : %.2f Lux\n", lux);
+  Serial.printf("WiFi / Cloud   : %s / %s\n", WiFi.status() == WL_CONNECTED ? "CONNECTED" : "OFFLINE", apiStatusText.c_str());
   Serial.println("================================");
 }
 
 // ==========================================
-// 6. SINKRONISASI KE SUPABASE RPC (HTTPS)
+// 6. KIRIM DATA KE SUPABASE CLOUD (HTTPS)
 // ==========================================
-void sendTelemetryToSupabase() {
+void sendSensorDataToServer() {
   if (WiFi.status() != WL_CONNECTED) {
+    maintainWiFi();
     apiStatusText = "NO_WIFI";
     return;
   }
 
   String baseUrl = String(SUPABASE_URL);
-  if (baseUrl.length() < 12 || baseUrl.indexOf("PROJECT_ID_ANDA") >= 0) {
-    apiStatusText = "CFG_ERR";
-    Serial.println("[SYNC] Isi SUPABASE_URL dan SUPABASE_ANON_KEY di solarMon/config.h terlebih dahulu.");
-    return;
-  }
-
   String endpoint = baseUrl + "/rest/v1/rpc/sync_solar_telemetry";
+
   WiFiClientSecure secureClient;
   secureClient.setInsecure();
 
   HTTPClient http;
   if (!http.begin(secureClient, endpoint)) {
+    Serial.println("[API] Gagal inisialisasi koneksi HTTPS.");
     apiStatusText = "HTTP_INIT";
     return;
   }
@@ -242,46 +242,30 @@ void sendTelemetryToSupabase() {
 
   unsigned long uptimeSec = millis() / 1000UL;
   int rssi = WiFi.RSSI();
-  const char* secretKey = DEVICE_SECRET_KEY;
 
   char jsonPayload[512];
-  if (strlen(secretKey) > 0) {
-    snprintf(
-      jsonPayload, sizeof(jsonPayload),
-      "{\"p_device_id\":\"%s\",\"p_device_key\":\"%s\",\"p_voltage\":%.3f,\"p_current_ma\":%.2f,\"p_power_w\":%.4f,\"p_lux\":%.2f,\"p_temperature\":%.2f,\"p_ina_ok\":%s,\"p_bh_ok\":%s,\"p_temp_ok\":%s,\"p_uptime_seconds\":%lu,\"p_wifi_connected\":true,\"p_wifi_rssi\":%d}",
-      DEVICE_ID, secretKey,
-      voltage, currentMa, powerWatt, lux, temperature,
-      inaOK ? "true" : "false",
-      bhOK ? "true" : "false",
-      tempOK ? "true" : "false",
-      uptimeSec, rssi
-    );
-  } else {
-    snprintf(
-      jsonPayload, sizeof(jsonPayload),
-      "{\"p_device_id\":\"%s\",\"p_voltage\":%.3f,\"p_current_ma\":%.2f,\"p_power_w\":%.4f,\"p_lux\":%.2f,\"p_temperature\":%.2f,\"p_ina_ok\":%s,\"p_bh_ok\":%s,\"p_temp_ok\":%s,\"p_uptime_seconds\":%lu,\"p_wifi_connected\":true,\"p_wifi_rssi\":%d}",
-      DEVICE_ID,
-      voltage, currentMa, powerWatt, lux, temperature,
-      inaOK ? "true" : "false",
-      bhOK ? "true" : "false",
-      tempOK ? "true" : "false",
-      uptimeSec, rssi
-    );
-  }
+  snprintf(
+    jsonPayload,
+    sizeof(jsonPayload),
+    "{\"p_device_id\":\"%s\",\"p_voltage\":%.3f,\"p_current_ma\":%.3f,\"p_power_w\":%.5f,\"p_lux\":%.2f,\"p_temperature\":%.2f,\"p_ina_ok\":%s,\"p_bh_ok\":%s,\"p_temp_ok\":%s,\"p_uptime_seconds\":%lu,\"p_wifi_connected\":true,\"p_wifi_rssi\":%d}",
+    DEVICE_ID,
+    voltage, currentMa, powerWatt, lux, temperature,
+    inaOK ? "true" : "false",
+    bhOK ? "true" : "false",
+    tempOK ? "true" : "false",
+    uptimeSec, rssi
+  );
 
-  Serial.print("[SYNC] POST -> ");
+  Serial.print("[API] POST -> ");
   Serial.println(jsonPayload);
 
   int httpCode = http.POST(jsonPayload);
-  if (httpCode >= 200 && httpCode < 300) {
+  if (httpCode > 0) {
     String response = http.getString();
-    Serial.printf("[SYNC OK] HTTP %d: %s\n", httpCode, response.c_str());
-    apiStatusText = "OK:" + String(httpCode);
-  } else if (httpCode > 0) {
-    Serial.printf("[SYNC ERR] HTTP %d: %s\n", httpCode, http.getString().c_str());
-    apiStatusText = "ERR:" + String(httpCode);
+    Serial.printf("[API] HTTP %d: %s\n", httpCode, response.c_str());
+    apiStatusText = (httpCode >= 200 && httpCode < 300) ? ("OK:" + String(httpCode)) : ("ERR:" + String(httpCode));
   } else {
-    Serial.printf("[SYNC ERR] %s\n", http.errorToString(httpCode).c_str());
+    Serial.printf("[API] Gagal koneksi: %s\n", http.errorToString(httpCode).c_str());
     apiStatusText = "HTTP_ERR";
   }
 
@@ -289,7 +273,7 @@ void sendTelemetryToSupabase() {
 }
 
 // ==========================================
-// 7. TAMPILAN LCD 16x2 I2C (4 HALAMAN)
+// 7. TAMPILAN LCD 16x2
 // ==========================================
 void displayLCD() {
   lcd.clear();
@@ -297,15 +281,30 @@ void displayLCD() {
   if (lcdPage == 0) {
     lcd.setCursor(0, 0);
     lcd.print("V:");
-    lcd.print(inaOK ? String(voltage, 2) + " V" : "ERROR");
+    if (inaOK) {
+      lcd.print(voltage, 2);
+      lcd.print(" V");
+    } else {
+      lcd.print("ERROR");
+    }
 
     lcd.setCursor(0, 1);
     lcd.print("I:");
-    lcd.print(inaOK ? String(currentMa, 1) + " mA" : "ERROR");
+    if (inaOK) {
+      lcd.print(currentMa, 2);
+      lcd.print(" mA");
+    } else {
+      lcd.print("ERROR");
+    }
   } else if (lcdPage == 1) {
     lcd.setCursor(0, 0);
     lcd.print("P:");
-    lcd.print(inaOK ? String(powerWatt, 2) + " W" : "ERROR");
+    if (inaOK) {
+      lcd.print(powerMw, 2);
+      lcd.print(" mW");
+    } else {
+      lcd.print("ERROR");
+    }
 
     lcd.setCursor(0, 1);
     lcd.print("T:");
@@ -320,12 +319,17 @@ void displayLCD() {
     lcd.setCursor(0, 0);
     lcd.print("LIGHT INTENSITY");
     lcd.setCursor(0, 1);
-    lcd.print(bhOK ? String(lux, 0) + " Lux" : "Sensor Error");
+    if (bhOK && lux >= 0) {
+      lcd.print(lux, 1);
+      lcd.print(" Lux");
+    } else {
+      lcd.print("Sensor Error");
+    }
   } else {
     lcd.setCursor(0, 0);
     lcd.print(WiFi.status() == WL_CONNECTED ? "WiFi: CONNECTED" : "WiFi: OFFLINE");
     lcd.setCursor(0, 1);
-    lcd.print("SYNC: ");
+    lcd.print("API: ");
     lcd.print(apiStatusText);
   }
 
@@ -333,7 +337,7 @@ void displayLCD() {
 }
 
 // ==========================================
-// 8. SETUP & LOOP (DENGAN WATCHDOG 20 DETIK)
+// 8. SETUP & LOOP
 // ==========================================
 void setup() {
   Serial.begin(115200);
@@ -345,6 +349,7 @@ void setup() {
   Wire.begin(SDA_PIN, SCL_PIN);
   Wire.setTimeOut(50);
   lcd.backlight();
+
   lcd.setCursor(0, 0);
   lcd.print("SOLAR MONITOR");
   lcd.setCursor(0, 1);
@@ -362,12 +367,13 @@ void setup() {
 #endif
   esp_task_wdt_add(NULL);
 
+  delay(200);
   scanI2CBus();
   initSensors();
 
   ds18b20.begin();
   ds18b20.setResolution(10);
-  Serial.print("[DS18B20] Sensor terdeteksi: ");
+  Serial.print("[DS18B20] Jumlah sensor 1-Wire terdeteksi: ");
   Serial.println(ds18b20.getDeviceCount());
 
   lcd.clear();
@@ -380,6 +386,9 @@ void setup() {
   lcd.print("SYSTEM READY");
   lcd.setCursor(0, 1);
   lcd.print("SOLAR MONITOR");
+
+  Serial.println();
+  Serial.println("SYSTEM SOLAR MONITORING READY");
 
   readSensors();
   displayLCD();
@@ -408,6 +417,6 @@ void loop() {
 
   if (currentMillis - previousSend >= SYNC_INTERVAL_MS) {
     previousSend = currentMillis;
-    sendTelemetryToSupabase();
+    sendSensorDataToServer();
   }
 }

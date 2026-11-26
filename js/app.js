@@ -455,9 +455,11 @@ function renderAll() {
   }
 
   setText("ovVoltage", hasData && t.ina_ok ? formatNum(t.voltage, 2) : "--");
-  setText("ovCurrent", hasData && t.ina_ok ? formatNum(t.current_ma, 1) : "--");
-  setText("ovPower", hasData && t.ina_ok ? formatNum(t.power_w, 2) : "--");
-  setText("ovEnergy", hasData ? formatNum(t.energy_wh, 2) : "--");
+  setText("ovCurrent", hasData && t.ina_ok ? formatNum(t.current_ma, 2) : "--");
+  const ovPowerVal = Number(t.power_w) || 0;
+  setText("ovPower", hasData && t.ina_ok ? formatNum(ovPowerVal, ovPowerVal > 0 && ovPowerVal < 0.1 ? 4 : 2) : "--");
+  const ovEnergyVal = Number(t.energy_wh) || 0;
+  setText("ovEnergy", hasData ? formatNum(ovEnergyVal, ovEnergyVal > 0 && ovEnergyVal < 0.1 ? 4 : 2) : "--");
 
   setStateBadge("ovInaBadge", hasData && t.ina_ok, "READY", hasData ? "ERROR" : "OFFLINE");
   setStateBadge("ovBhBadge", hasData && t.bh_ok, "READY", hasData ? "ERROR" : "OFFLINE");
@@ -472,17 +474,17 @@ function renderAll() {
   const capWp = Math.max(1, Number(c.panel_capacity_wp) || 10);
   const loadPct = hasData ? Math.min(100, Math.max(0, (pw / capWp) * 100)) : 0;
 
-  setText("elPower", hasData && t.ina_ok ? formatNum(pw, 2) : "--");
-  setText("elLoadPct", `${loadPct.toFixed(1)}% DARI ${capWp}Wp`);
+  setText("elPower", hasData && t.ina_ok ? formatNum(pw, pw > 0 && pw < 0.1 ? 4 : 2) : "--");
+  setText("elLoadPct", `${loadPct.toFixed(2)}% DARI ${capWp}Wp`);
   const loadBar = document.getElementById("elLoadBar");
   if (loadBar) loadBar.style.width = hasData ? `${Math.max(pw > 0 ? 3 : 0, loadPct)}%` : "0%";
-  setText("elPowerMw", hasData && t.ina_ok ? `${formatNum(pw * 1000, 0)} mW` : "-- mW");
-  setText("elEnergyKwh", hasData ? `${formatNum(wh / 1000, 4)} kWh` : "-- kWh");
+  setText("elPowerMw", hasData && t.ina_ok ? `${formatNum(pw * 1000, 2)} mW` : "-- mW");
+  setText("elEnergyKwh", hasData ? `${formatNum(wh / 1000, 5)} kWh` : "-- kWh");
 
   setText("elVoltage", hasData && t.ina_ok ? formatNum(v, 2) : "--");
-  setText("elCurrent", hasData && t.ina_ok ? formatNum(ma, 1) : "--");
-  setText("elCurrentAmp", hasData && t.ina_ok ? `${formatNum(ma / 1000, 3)} A` : "-- A");
-  setText("elEnergy", hasData ? formatNum(wh, 2) : "--");
+  setText("elCurrent", hasData && t.ina_ok ? formatNum(ma, 2) : "--");
+  setText("elCurrentAmp", hasData && t.ina_ok ? `${formatNum(ma / 1000, 4)} A` : "-- A");
+  setText("elEnergy", hasData ? formatNum(wh, wh > 0 && wh < 0.1 ? 4 : 2) : "--");
 
   if (!hasData) setQualityTag("elVoltageQuality", "Offline", "neutral");
   else if (!t.ina_ok) setQualityTag("elVoltageQuality", "Sensor Err", "bad");
@@ -986,8 +988,8 @@ function renderHistoryAnalytics(rows) {
     const lastE = Number(rows[rows.length - 1].energy_wh) || 0;
     const deltaE = Math.max(0, lastE - firstE);
 
-    setText("histPeakPower", peakPower.toFixed(2));
-    setText("histDeltaEnergy", deltaE.toFixed(2));
+    setText("histPeakPower", peakPower.toFixed(peakPower > 0 && peakPower < 0.1 ? 4 : 2));
+    setText("histDeltaEnergy", deltaE.toFixed(deltaE > 0 && deltaE < 0.1 ? 4 : 2));
     setText("histAvgLux", Math.round(avgLux).toLocaleString("id-ID"));
     setText("histAvgTemp", avgTemp.toFixed(1));
   }
@@ -1028,8 +1030,8 @@ function renderHistoryTable(rows) {
     [
       formatDateTime(r.recorded_at),
       formatNum(r.voltage, 2),
-      formatNum(r.current_ma, 1),
-      formatNum(r.power_w, 2),
+      formatNum(r.current_ma, 2),
+      formatNum(r.power_w, Number(r.power_w) > 0 && Number(r.power_w) < 0.1 ? 4 : 2),
       Math.round(Number(r.lux) || 0).toLocaleString("id-ID"),
       formatNum(r.temperature, 1)
     ].forEach((val) => {
