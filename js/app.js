@@ -1,21 +1,17 @@
 /**
  * ============================================================================
- * CONTROLLER DASHBOARD SOLARMONITOR - ESP32 SOLAR PANEL MONITORING IOT
+ * CONTROLLER DASHBOARD SOLARMONITOR - COBALT BLUE DONEZO EDITION
  * Mendukung 2 Mode Sumber Data:
- * 1. Simulasi Interaktif (langsung aktif untuk preview & pengujian tanpa hardware)
- * 2. Supabase Cloud (PostgreSQL + RPC ESP32 + Realtime + Public Read / Admin Write)
+ * 1. Supabase Cloud (PostgreSQL + RPC ESP32 + Realtime + 4s Polling Fallback)
+ * 2. Simulasi Interaktif (untuk pengujian UI tanpa hardware)
  * ============================================================================
  */
 
 const STORAGE_KEY = "solarmon_dashboard_settings_v1";
-const THEME_STORAGE_KEY = "solarmon_theme_v1";
 const MAX_REALTIME_POINTS = 25;
 
-// ----------------------------------------------------------------------------
-// STATE APLIKASI TERPUSAT
-// ----------------------------------------------------------------------------
 const defaultSettings = {
-  mode: window.APP_CONFIG?.mode || "simulator",
+  mode: window.APP_CONFIG?.mode || "supabase",
   supabaseUrl: window.APP_CONFIG?.supabase?.url || "",
   supabaseAnonKey: window.APP_CONFIG?.supabase?.anonKey || "",
   deviceId: window.APP_CONFIG?.supabase?.deviceId || "ESP32_SOLAR_01"
@@ -44,6 +40,8 @@ const appState = {
   user: null,
   role: "viewer",
   lastOnlineState: false,
+  autoSyncEnabled: true,
+  searchQuery: "",
   telemetry: createEmptyTelemetry(),
   config: {
     panel_capacity_wp: 10.0,
@@ -54,10 +52,11 @@ const appState = {
     log_interval_seconds: 10
   },
   realtimeSeries: [],
+  recentLogs: [],
   historyLogs: [],
   filteredHistory: [],
   activityLogs: [],
-  simPreset: "normal" // 'dark' | 'normal' | 'peak'
+  simPreset: "normal"
 };
 
 let supabaseClient = null;
@@ -90,11 +89,17 @@ function formatNum(val, decimals = 1) {
   return Number.isFinite(num) ? num.toFixed(decimals) : "--";
 }
 
-function formatUptime(totalSec) {
+function formatSmartWatt(val) {
+  const num = Number(val) || 0;
+  return num > 0 && num < 0.1 ? num.toFixed(4) : num.toFixed(2);
+}
+
+function formatClockUptime(totalSec) {
   const sec = Math.max(0, Math.floor(Number(totalSec) || 0));
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);
-  return `${String(h).padStart(2, "0")}h ${String(m).padStart(2, "0")}m`;
+  const s = sec % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
 function formatTime(isoStr) {
@@ -118,14 +123,14 @@ function setStateBadge(id, isOn, labelOn = "READY", labelOff = "OFFLINE") {
   const el = document.getElementById(id);
   if (!el) return;
   el.textContent = isOn ? labelOn : labelOff;
-  el.className = "state-badge " + (isOn ? "on" : "off");
+  el.className = "pill-state " + (isOn ? "on" : "off");
 }
 
 function setQualityTag(id, label, level) {
   const el = document.getElementById(id);
   if (!el) return;
   el.textContent = label;
-  el.className = "quality-tag " + level;
+  el.className = "status-tag-soft" + (level && level !== "good" ? " " + level : "");
 }
 
 function getLightCategory(lux, lowThreshold = 500) {
@@ -153,44 +158,19 @@ function canAdminEdit() {
 }
 
 // ----------------------------------------------------------------------------
-// NAVIGASI 5 HALAMAN & SIDEBAR RESPONSIVE
+// NAVIGASI 5 HALAMAN
 // ----------------------------------------------------------------------------
-const PAGE_META = {
-  overview: {
-    title: "SolarMonitor Panel",
-    subtitle: "Ringkasan parameter kelistrikan, intensitas cahaya, suhu panel, dan modul sensor"
-  },
-  electrical: {
-    title: "Electrical Telemetry",
-    subtitle: "Detail pengukuran INA219: tegangan DC, arus mA, daya sesaat, dan akumulasi energi Wh"
-  },
-  environment: {
-    title: "Solar & Thermal",
-    subtitle: "Pemantauan intensitas cahaya (BH1750) dan temperatur panel surya (DS18B20)"
-  },
-  history: {
-    title: "History & Logs",
-    subtitle: "Grafik historis, kalkulasi energi periode, tabel data logging, dan export CSV"
-  },
-  settings: {
-    title: "System Settings",
-    subtitle: "Konfigurasi backend Supabase, kapasitas panel, ambang suhu, dan mode simulasi"
-  }
-};
-
 function navigateTo(pageKey) {
-  if (!PAGE_META[pageKey]) return;
+  const target = document.getElementById(`page-${pageKey}`);
+  if (!target) return;
   appState.activePage = pageKey;
 
   document.querySelectorAll(".page").forEach((el) => el.classList.remove("active"));
-  document.getElementById(`page-${pageKey}`)?.classList.add("active");
+  target.classList.add("active");
 
   document.querySelectorAll(".nav-item, .mob-nav-item").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.page === pageKey);
   });
-
-  setText("pageTitle", PAGE_META[pageKey].title);
-  setText("pageSubtitle", PAGE_META[pageKey].subtitle);
 
   document.getElementById("sidebar")?.classList.remove("open");
   document.getElementById("sidebarBackdrop")?.classList.remove("show");
@@ -201,35 +181,22 @@ function navigateTo(pageKey) {
 }
 
 // ----------------------------------------------------------------------------
-// GRAFIK CHART.JS (MONOCHROME DARK & LIGHT THEME)
+// GRAFIK CHART.JS (COBALT BLUE PALETTE)
 // ----------------------------------------------------------------------------
-function getCurrentTheme() {
-  return localStorage.getItem(THEME_STORAGE_KEY) || "dark";
-}
-
-function getChartPalette(theme) {
-  if (theme === "light") {
-    return {
-      primary: "#09090b",
-      primaryFill: "rgba(9, 9, 11, 0.08)",
-      secondary: "#6e6e77",
-      text: "#52525b",
-      grid: "rgba(0, 0, 0, 0.08)"
-    };
-  }
-  return {
-    primary: "#ffffff",
-    primaryFill: "rgba(255, 255, 255, 0.12)",
-    secondary: "#a1a1aa",
-    text: "#a1a1aa",
-    grid: "rgba(255, 255, 255, 0.09)"
-  };
-}
+const CHART_PAL = {
+  cobaltDeep: "#00288E",
+  cobaltPrimary: "#1E40AF",
+  cobaltMid: "#2563EB",
+  cobaltLight: "#60A5FA",
+  cobaltSoftFill: "rgba(30, 64, 175, 0.12)",
+  skyAccent: "#0284C7",
+  text: "#64748B",
+  grid: "rgba(148, 163, 184, 0.18)"
+};
 
 function createLineChart(canvasId, datasets, yAxes = {}) {
   const ctx = document.getElementById(canvasId);
   if (!ctx || typeof window.Chart === "undefined") return null;
-  const pal = getChartPalette(getCurrentTheme());
 
   return new window.Chart(ctx, {
     type: "line",
@@ -240,12 +207,12 @@ function createLineChart(canvasId, datasets, yAxes = {}) {
       animation: { duration: 180 },
       interaction: { mode: "index", intersect: false },
       plugins: {
-        legend: { labels: { color: pal.text, boxWidth: 12 } }
+        legend: { labels: { color: CHART_PAL.text, boxWidth: 12, font: { family: "Plus Jakarta Sans", weight: "600" } } }
       },
       scales: {
         x: {
-          ticks: { color: pal.text, maxTicksLimit: 8 },
-          grid: { color: pal.grid }
+          ticks: { color: CHART_PAL.text, maxTicksLimit: 8 },
+          grid: { display: false }
         },
         ...yAxes
       }
@@ -255,112 +222,128 @@ function createLineChart(canvasId, datasets, yAxes = {}) {
 
 function initCharts() {
   if (typeof window.Chart === "undefined") return;
-  const pal = getChartPalette(getCurrentTheme());
+
+  // Overview Capsule Bar Chart (matching desain.jpg "Project Analytics")
+  const ovCtx = document.getElementById("overviewBarChart");
+  if (ovCtx) {
+    charts.overviewBar = new window.Chart(ovCtx, {
+      type: "bar",
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: "Tegangan (V)",
+            data: [],
+            backgroundColor: (ctx) => {
+              const idx = ctx.dataIndex;
+              const len = ctx.dataset.data.length;
+              if (idx === len - 1) return CHART_PAL.cobaltDeep;
+              return idx % 2 === 0 ? CHART_PAL.cobaltPrimary : CHART_PAL.cobaltLight;
+            },
+            borderRadius: 14,
+            borderSkipped: false,
+            barPercentage: 0.62,
+            categoryPercentage: 0.8
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 180 },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (item) => `${Number(item.raw).toFixed(2)} V`
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: CHART_PAL.text, font: { size: 11, weight: "600" } },
+            grid: { display: false },
+            border: { display: false }
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { color: CHART_PAL.text, maxTicksLimit: 5 },
+            grid: { color: CHART_PAL.grid },
+            border: { display: false }
+          }
+        }
+      }
+    });
+  }
 
   charts.elPower = createLineChart(
     "electricalPowerChart",
     [
-      { label: "Daya (W)", data: [], borderColor: pal.primary, backgroundColor: pal.primaryFill, tension: 0.3, yAxisID: "y" },
-      { label: "Arus (mA)", data: [], borderColor: pal.secondary, borderDash: [4, 3], tension: 0.3, yAxisID: "y1" }
+      { label: "Daya (W)", data: [], borderColor: CHART_PAL.cobaltPrimary, backgroundColor: CHART_PAL.cobaltSoftFill, fill: true, tension: 0.35, yAxisID: "y" },
+      { label: "Arus (mA)", data: [], borderColor: CHART_PAL.skyAccent, borderDash: [5, 4], tension: 0.35, yAxisID: "y1" }
     ],
     {
-      y: { position: "left", ticks: { color: pal.primary }, grid: { color: pal.grid } },
-      y1: { position: "right", ticks: { color: pal.secondary }, grid: { drawOnChartArea: false } }
+      y: { position: "left", ticks: { color: CHART_PAL.cobaltPrimary }, grid: { color: CHART_PAL.grid } },
+      y1: { position: "right", ticks: { color: CHART_PAL.skyAccent }, grid: { drawOnChartArea: false } }
     }
   );
 
   charts.elVoltage = createLineChart(
     "electricalVoltageChart",
     [
-      { label: "Tegangan (V)", data: [], borderColor: pal.primary, backgroundColor: pal.primaryFill, tension: 0.3, yAxisID: "y" }
+      { label: "Tegangan (V)", data: [], borderColor: CHART_PAL.cobaltDeep, backgroundColor: CHART_PAL.cobaltSoftFill, fill: true, tension: 0.35, yAxisID: "y" }
     ],
     {
-      y: { position: "left", min: 0, ticks: { color: pal.primary }, grid: { color: pal.grid } }
+      y: { position: "left", min: 0, ticks: { color: CHART_PAL.cobaltDeep }, grid: { color: CHART_PAL.grid } }
     }
   );
 
   charts.env = createLineChart(
     "environmentChart",
     [
-      { label: "Cahaya (Lux)", data: [], borderColor: pal.primary, backgroundColor: pal.primaryFill, tension: 0.3, yAxisID: "y" },
-      { label: "Suhu Panel (C)", data: [], borderColor: pal.secondary, borderDash: [4, 3], tension: 0.3, yAxisID: "y1" }
+      { label: "Cahaya (Lux)", data: [], borderColor: CHART_PAL.cobaltPrimary, backgroundColor: CHART_PAL.cobaltSoftFill, fill: true, tension: 0.35, yAxisID: "y" },
+      { label: "Suhu Panel (C)", data: [], borderColor: "#D97706", borderDash: [5, 4], tension: 0.35, yAxisID: "y1" }
     ],
     {
-      y: { position: "left", min: 0, ticks: { color: pal.primary }, grid: { color: pal.grid } },
-      y1: { position: "right", ticks: { color: pal.secondary }, grid: { drawOnChartArea: false } }
+      y: { position: "left", min: 0, ticks: { color: CHART_PAL.cobaltPrimary }, grid: { color: CHART_PAL.grid } },
+      y1: { position: "right", ticks: { color: "#D97706" }, grid: { drawOnChartArea: false } }
     }
   );
 
   charts.histPower = createLineChart(
     "historyPowerChart",
     [
-      { label: "Daya (W)", data: [], borderColor: pal.primary, tension: 0.25, yAxisID: "y" },
-      { label: "Tegangan (V)", data: [], borderColor: pal.secondary, borderDash: [4, 3], tension: 0.25, yAxisID: "y1" }
+      { label: "Daya (W)", data: [], borderColor: CHART_PAL.cobaltPrimary, tension: 0.3, yAxisID: "y" },
+      { label: "Tegangan (V)", data: [], borderColor: CHART_PAL.skyAccent, borderDash: [4, 3], tension: 0.3, yAxisID: "y1" }
     ],
     {
-      y: { position: "left", ticks: { color: pal.primary }, grid: { color: pal.grid } },
-      y1: { position: "right", ticks: { color: pal.secondary }, grid: { drawOnChartArea: false } }
+      y: { position: "left", ticks: { color: CHART_PAL.cobaltPrimary }, grid: { color: CHART_PAL.grid } },
+      y1: { position: "right", ticks: { color: CHART_PAL.skyAccent }, grid: { drawOnChartArea: false } }
     }
   );
 
   charts.histTemp = createLineChart(
     "historyTempChart",
     [
-      { label: "Cahaya (Lux)", data: [], borderColor: pal.primary, tension: 0.25, yAxisID: "y" },
-      { label: "Suhu Panel (C)", data: [], borderColor: pal.secondary, borderDash: [4, 3], tension: 0.25, yAxisID: "y1" }
+      { label: "Cahaya (Lux)", data: [], borderColor: CHART_PAL.cobaltPrimary, tension: 0.3, yAxisID: "y" },
+      { label: "Suhu Panel (C)", data: [], borderColor: "#D97706", borderDash: [4, 3], tension: 0.3, yAxisID: "y1" }
     ],
     {
-      y: { position: "left", min: 0, ticks: { color: pal.primary }, grid: { color: pal.grid } },
-      y1: { position: "right", ticks: { color: pal.secondary }, grid: { drawOnChartArea: false } }
+      y: { position: "left", min: 0, ticks: { color: CHART_PAL.cobaltPrimary }, grid: { color: CHART_PAL.grid } },
+      y1: { position: "right", ticks: { color: "#D97706" }, grid: { drawOnChartArea: false } }
     }
   );
 }
 
-function applyTheme(theme) {
-  const next = theme === "light" ? "light" : "dark";
-  localStorage.setItem(THEME_STORAGE_KEY, next);
-  document.documentElement.setAttribute("data-theme", next);
-  document.documentElement.classList.toggle("dark", next === "dark");
-  document.documentElement.classList.toggle("light", next === "light");
-
-  const metaTheme = document.getElementById("metaThemeColor");
-  if (metaTheme) metaTheme.setAttribute("content", next === "light" ? "#ffffff" : "#000000");
-
-  document.getElementById("themeIconSun")?.classList.toggle("hidden", next === "light");
-  document.getElementById("themeIconMoon")?.classList.toggle("hidden", next === "dark");
-
-  const pal = getChartPalette(next);
-  Object.values(charts).forEach((ch) => {
-    if (!ch) return;
-    if (ch.options?.plugins?.legend?.labels) {
-      ch.options.plugins.legend.labels.color = pal.text;
-    }
-    if (ch.options?.scales?.x) {
-      ch.options.scales.x.ticks.color = pal.text;
-      ch.options.scales.x.grid.color = pal.grid;
-    }
-    if (ch.options?.scales?.y) {
-      ch.options.scales.y.ticks.color = pal.primary;
-      ch.options.scales.y.grid.color = pal.grid;
-    }
-    if (ch.options?.scales?.y1) {
-      ch.options.scales.y1.ticks.color = pal.secondary;
-    }
-    if (ch.data?.datasets?.[0]) {
-      ch.data.datasets[0].borderColor = pal.primary;
-      if (ch.data.datasets[0].backgroundColor) {
-        ch.data.datasets[0].backgroundColor = pal.primaryFill;
-      }
-    }
-    if (ch.data?.datasets?.[1]) {
-      ch.data.datasets[1].borderColor = pal.secondary;
-    }
-    ch.update("none");
-  });
-}
-
 function updateRealtimeCharts() {
   const labels = appState.realtimeSeries.map((p) => p.label);
+
+  if (charts.overviewBar) {
+    const barSlice = appState.realtimeSeries.slice(-8);
+    charts.overviewBar.data.labels = barSlice.map((p) => p.label);
+    charts.overviewBar.data.datasets[0].data = barSlice.map((p) => p.voltage);
+    charts.overviewBar.update("none");
+  }
 
   if (charts.elPower) {
     charts.elPower.data.labels = labels;
@@ -390,17 +373,24 @@ function pushRealtimePoint(t) {
   }
   if (seenKey) lastPushedSeenAt = seenKey;
 
-  appState.realtimeSeries.push({
+  const point = {
     label: formatTime(seenKey || new Date().toISOString()),
+    recorded_at: seenKey || new Date().toISOString(),
     voltage: Number(t.voltage) || 0,
     current_ma: Number(t.current_ma) || 0,
     power_w: Number(t.power_w) || 0,
     lux: Number(t.lux) || 0,
     temperature: Number(t.temperature) || 0
-  });
+  };
 
+  appState.realtimeSeries.push(point);
   if (appState.realtimeSeries.length > MAX_REALTIME_POINTS) {
     appState.realtimeSeries.shift();
+  }
+
+  appState.recentLogs.unshift(point);
+  if (appState.recentLogs.length > 25) {
+    appState.recentLogs.pop();
   }
 
   updateRealtimeCharts();
@@ -419,72 +409,76 @@ function renderAll() {
   setText("sidebarDeviceId", appState.settings.deviceId);
   renderTopbarBadges();
 
-  // --- HALAMAN 1: OVERVIEW ---
-  setText("ovWifiStatus", online && t.wifi_connected ? "Connected" : hasData ? "Terputus" : "Offline");
-  const wifiDot = document.getElementById("ovWifiDot");
-  if (wifiDot) wifiDot.className = "led-pip " + (online && t.wifi_connected ? "green" : hasData ? "amber" : "red");
-  setText("ovLastSeen", hasData ? `${online ? "Sync" : "Terakhir"}: ${formatTime(t.last_seen_at)}` : "Menunggu node");
+  const readyCount = hasData ? [t.ina_ok, t.bh_ok, t.temp_ok].filter(Boolean).length : 0;
+  setText("navSensorCount", `${readyCount}/3`);
+  setText("ovBusHealth", `${readyCount}/3 Ready`);
 
-  setText("ovUptime", hasData ? formatUptime(t.uptime_seconds) : "00h 00m");
-  setText("ovLastSeenSmall", hasData ? `${Math.floor(t.uptime_seconds || 0)} detik` : "0 detik");
+  // --- ROW 1: 4 KPI CARDS ---
+  const pw = hasData && t.ina_ok ? Number(t.power_w) || 0 : 0;
+  const v = hasData && t.ina_ok ? Number(t.voltage) || 0 : 0;
+  const ma = hasData && t.ina_ok ? Number(t.current_ma) || 0 : 0;
+  const wh = hasData ? Number(t.energy_wh) || 0 : 0;
+  const capWp = Math.max(1, Number(c.panel_capacity_wp) || 10);
+
+  setText("ovPower", hasData && t.ina_ok ? formatSmartWatt(pw) : "--");
+  setText("ovPowerMwBadge", hasData && t.ina_ok ? `${formatNum(pw * 1000, 2)} mW` : "-- mW");
+
+  setText("ovVoltage", hasData && t.ina_ok ? formatNum(v, 2) : "--");
+  setText("ovWifiStatus", online && t.wifi_connected ? "Node terhubung live" : hasData ? `Terakhir ${formatTime(t.last_seen_at)}` : "Menunggu node");
+
+  setText("ovCurrent", hasData && t.ina_ok ? formatNum(ma, 2) : "--");
+  setText("ovCurrentAmpBadge", hasData && t.ina_ok ? `${formatNum(ma / 1000, 4)} A` : "-- A");
+
+  const lightCat = hasData && t.bh_ok ? getLightCategory(t.lux, c.low_lux_threshold) : "--";
+  setText("ovLux", hasData && t.bh_ok ? Math.round(t.lux).toLocaleString("id-ID") : "--");
+  setText("ovSolarCond", lightCat);
+
+  // --- ROW 2: ANALYTICS, THERMAL & MODULES ---
+  setText("ovLastSeen", hasData ? `${online ? "Sync" : "Terakhir"}: ${formatTime(t.last_seen_at)}` : "Sync: --");
 
   const tempVal = Number(t.temperature) || 0;
   const isOverheat = hasData && t.temp_ok && tempVal >= c.temp_threshold_alarm;
   const isWarm = hasData && t.temp_ok && tempVal >= c.temp_threshold_warn;
-  const thermalHealth = !hasData ? "Offline" : !t.temp_ok ? "Sensor Err" : isOverheat ? "Overheat" : isWarm ? "Hangat" : "Normal";
-  setText("ovThermalHealth", thermalHealth);
-  setText("ovTempHint", `Alarm >= ${formatNum(c.temp_threshold_alarm, 0)} C`);
-  const thermalDot = document.getElementById("ovThermalDot");
-  if (thermalDot) {
-    thermalDot.className = "led-pip " + (!hasData || !t.temp_ok ? "red" : isOverheat || isWarm ? "amber" : "green");
-  }
-
-  const readyCount = hasData ? [t.ina_ok, t.bh_ok, t.temp_ok].filter(Boolean).length : 0;
-  setText("ovBusHealth", hasData ? `${readyCount}/3 Ready` : "0/3 Ready");
-  const busDot = document.getElementById("ovBusDot");
-  if (busDot) busDot.className = "led-pip " + (readyCount === 3 ? "green" : readyCount > 0 ? "amber" : "red");
-
-  setText("ovLux", hasData && t.bh_ok ? Math.round(t.lux).toLocaleString("id-ID") : "--");
   setText("ovTempPanel", hasData && t.temp_ok ? formatNum(t.temperature, 1) : "--");
-
-  const lightCat = hasData && t.bh_ok ? getLightCategory(t.lux, c.low_lux_threshold) : "--";
-  setText("ovSolarCond", lightCat);
-  const lightDot = document.getElementById("ovLightDot");
-  if (lightDot) {
-    lightDot.className = "led-pip " + (hasData && t.bh_ok && t.lux >= c.low_lux_threshold ? "green" : "red");
-  }
-
-  setText("ovVoltage", hasData && t.ina_ok ? formatNum(t.voltage, 2) : "--");
-  setText("ovCurrent", hasData && t.ina_ok ? formatNum(t.current_ma, 2) : "--");
-  const ovPowerVal = Number(t.power_w) || 0;
-  setText("ovPower", hasData && t.ina_ok ? formatNum(ovPowerVal, ovPowerVal > 0 && ovPowerVal < 0.1 ? 4 : 2) : "--");
-  const ovEnergyVal = Number(t.energy_wh) || 0;
-  setText("ovEnergy", hasData ? formatNum(ovEnergyVal, ovEnergyVal > 0 && ovEnergyVal < 0.1 ? 4 : 2) : "--");
+  setText("ovTempHint", `Sensor DS18B20 (GPIO 4) - Alarm >= ${formatNum(c.temp_threshold_alarm, 0)} C`);
+  if (!hasData) setQualityTag("ovThermalHealth", "Offline", "neutral");
+  else if (!t.temp_ok) setQualityTag("ovThermalHealth", "Error", "bad");
+  else if (isOverheat) setQualityTag("ovThermalHealth", "Overheat", "bad");
+  else if (isWarm) setQualityTag("ovThermalHealth", "Hangat", "warn");
+  else setQualityTag("ovThermalHealth", "Normal", "good");
 
   setStateBadge("ovInaBadge", hasData && t.ina_ok, "READY", hasData ? "ERROR" : "OFFLINE");
   setStateBadge("ovBhBadge", hasData && t.bh_ok, "READY", hasData ? "ERROR" : "OFFLINE");
   setStateBadge("ovDsBadge", hasData && t.temp_ok, "READY", hasData ? "ERROR" : "OFFLINE");
   setStateBadge("ovLcdBadge", online, "ACTIVE", hasData ? "STANDBY" : "OFFLINE");
 
-  // --- HALAMAN 2: ELECTRICAL TELEMETRY ---
-  const v = hasData && t.ina_ok ? Number(t.voltage) || 0 : 0;
-  const ma = hasData && t.ina_ok ? Number(t.current_ma) || 0 : 0;
-  const pw = hasData && t.ina_ok ? Number(t.power_w) || 0 : 0;
-  const wh = hasData ? Number(t.energy_wh) || 0 : 0;
-  const capWp = Math.max(1, Number(c.panel_capacity_wp) || 10);
-  const loadPct = hasData ? Math.min(100, Math.max(0, (pw / capWp) * 100)) : 0;
+  // --- ROW 3: SEMI-CIRCLE ENERGY GAUGE & UPTIME TRACKER ---
+  setText("ovEnergy", hasData ? formatSmartWatt(wh) : "0.0000");
+  setText("ovTargetCapLabel", `${capWp} Wp`);
+  const gaugeArc = document.getElementById("ovEnergyGaugeArc");
+  if (gaugeArc) {
+    const targetWh = Math.max(1, capWp * 5);
+    const pct = wh > 0 ? Math.min(1, Math.max(0.08, wh / targetWh)) : 0.04;
+    const totalLen = 276.5;
+    gaugeArc.setAttribute("stroke-dashoffset", (totalLen * (1 - pct)).toFixed(1));
+  }
 
-  setText("elPower", hasData && t.ina_ok ? formatNum(pw, pw > 0 && pw < 0.1 ? 4 : 2) : "--");
+  setText("ovUptime", hasData ? formatClockUptime(t.uptime_seconds) : "00:00:00");
+  setText("ovLastSeenSmall", appState.autoSyncEnabled ? "Auto-Sync Aktif (4 dtk)" : "Auto-Sync Dijeda");
+
+  // --- HALAMAN 2: ELECTRICAL TELEMETRY ---
+  const loadPct = hasData ? Math.min(100, Math.max(0, (pw / capWp) * 100)) : 0;
+  setText("elPower", hasData && t.ina_ok ? formatSmartWatt(pw) : "--");
   setText("elLoadPct", `${loadPct.toFixed(2)}% DARI ${capWp}Wp`);
   const loadBar = document.getElementById("elLoadBar");
-  if (loadBar) loadBar.style.width = hasData ? `${Math.max(pw > 0 ? 3 : 0, loadPct)}%` : "0%";
+  if (loadBar) loadBar.style.width = hasData ? `${Math.max(pw > 0 ? 4 : 0, loadPct)}%` : "0%";
   setText("elPowerMw", hasData && t.ina_ok ? `${formatNum(pw * 1000, 2)} mW` : "-- mW");
   setText("elEnergyKwh", hasData ? `${formatNum(wh / 1000, 5)} kWh` : "-- kWh");
 
   setText("elVoltage", hasData && t.ina_ok ? formatNum(v, 2) : "--");
   setText("elCurrent", hasData && t.ina_ok ? formatNum(ma, 2) : "--");
   setText("elCurrentAmp", hasData && t.ina_ok ? `${formatNum(ma / 1000, 4)} A` : "-- A");
-  setText("elEnergy", hasData ? formatNum(wh, wh > 0 && wh < 0.1 ? 4 : 2) : "--");
+  setText("elEnergy", hasData ? formatSmartWatt(wh) : "--");
 
   if (!hasData) setQualityTag("elVoltageQuality", "Offline", "neutral");
   else if (!t.ina_ok) setQualityTag("elVoltageQuality", "Sensor Err", "bad");
@@ -494,7 +488,7 @@ function renderAll() {
   // --- HALAMAN 3: SOLAR & THERMAL ---
   setText("envLux", hasData && t.bh_ok ? Math.round(t.lux).toLocaleString("id-ID") : "--");
   setText("envTempPanel", hasData && t.temp_ok ? formatNum(t.temperature, 1) : "--");
-  setText("envLightCategory", lightCat === "--" ? "--" : `${lightCat} (${Math.round(t.lux)} Lux)`);
+  setText("envLightCategory", lightCat === "--" ? "--" : `Kondisi ${lightCat} (${Math.round(t.lux)} Lux)`);
   setText("envWarnThreshold", formatNum(c.temp_threshold_warn, 1));
   setText("envAlarmThreshold", formatNum(c.temp_threshold_alarm, 1));
 
@@ -504,23 +498,21 @@ function renderAll() {
   else if (isWarm) setQualityTag("envPanelZone", "HANGAT", "warn");
   else setQualityTag("envPanelZone", "NORMAL", "good");
 
+  renderOverviewRecentLogs();
   renderActivityFeed();
   evaluateAlerts();
 }
 
 function renderTopbarBadges() {
-  const modeMap = {
-    simulator: "Simulasi",
-    supabase: "Supabase"
-  };
-  setText("backendBadge", modeMap[appState.settings.mode] || "Simulasi");
+  const modeMap = { simulator: "Simulasi", supabase: "Supabase" };
+  setText("backendBadge", modeMap[appState.settings.mode] || "Supabase");
 
   if (appState.settings.mode === "simulator") {
-    setText("userRoleLabel", "Demo Mode");
+    setText("userRoleLabel", "Demo");
   } else if (appState.user) {
-    setText("userRoleLabel", `${appState.role.toUpperCase()}`);
+    setText("userRoleLabel", appState.role.toUpperCase());
   } else {
-    setText("userRoleLabel", "Publik (Login)");
+    setText("userRoleLabel", "Publik");
   }
 
   updateHeartbeatBadge();
@@ -532,11 +524,11 @@ function updateHeartbeatBadge() {
   if (!badge) return;
 
   if (isDeviceOnline()) {
-    badge.className = "blynk-status-pill online";
-    if (textEl) textEl.innerHTML = "ESP32<br>ONLINE";
+    badge.className = "status-pill online";
+    if (textEl) textEl.textContent = "ESP32 ONLINE";
   } else {
-    badge.className = "blynk-status-pill offline";
-    if (textEl) textEl.innerHTML = "ESP32<br>OFFLINE";
+    badge.className = "status-pill offline";
+    if (textEl) textEl.textContent = "ESP32 OFFLINE";
   }
 }
 
@@ -552,88 +544,116 @@ function evaluateAlerts() {
   const alarmTh = Number(appState.config.temp_threshold_alarm) || 60;
 
   if (hasData && t.temp_ok && t.temperature >= alarmTh) {
-    banner.className = "alert-banner";
+    banner.className = "alert-banner danger";
     iconEl.textContent = "OVERHEAT";
     textEl.textContent = `Suhu panel mencapai ${t.temperature.toFixed(1)} C (melewati batas alarm ${alarmTh} C).`;
   } else if (hasData && (!t.ina_ok || !t.bh_ok || !t.temp_ok)) {
-    banner.className = "alert-banner";
+    banner.className = "alert-banner danger";
     iconEl.textContent = "SENSOR";
     const errs = [!t.ina_ok && "INA219", !t.bh_ok && "BH1750", !t.temp_ok && "DS18B20"].filter(Boolean).join(", ");
     textEl.textContent = `Ada modul sensor tidak terbaca (${errs}). Periksa koneksi kabel ESP32.`;
   } else if (!online && appState.settings.mode !== "simulator") {
     banner.className = "alert-banner";
-    iconEl.textContent = "OFFLINE";
+    iconEl.textContent = "STANDBY";
     textEl.textContent = hasData
-      ? `Menampilkan data terakhir (${formatTime(t.last_seen_at)}). Menunggu kirim ulang dari ESP32.`
+      ? `Menampilkan pembacaan terakhir (${formatTime(t.last_seen_at)}). Menunggu kirim ulang dari ESP32.`
       : "Node ESP32 belum mengirim data terbaru. Menunggu sinkronisasi dari hardware.";
   } else {
     banner.className = "alert-banner hidden";
   }
 }
 
-function renderActivityFeed() {
+function renderOverviewRecentLogs() {
   const feedEl = document.getElementById("overviewActivityList");
+  if (!feedEl) return;
+  feedEl.replaceChildren();
+
+  const q = appState.searchQuery.trim().toLowerCase();
+  const list = (appState.recentLogs || []).filter((item) => {
+    if (!q) return true;
+    const hay = `${item.label} ${item.voltage} ${item.current_ma} ${item.lux} ${item.temperature}`.toLowerCase();
+    return hay.includes(q);
+  });
+
+  if (list.length === 0) {
+    const li = document.createElement("li");
+    li.className = "empty-note";
+    li.textContent = q ? "Tidak ada log cocok dengan pencarian." : "Menunggu aliran data sensor...";
+    feedEl.appendChild(li);
+    return;
+  }
+
+  const warnTh = Number(appState.config.temp_threshold_warn) || 45;
+  const alarmTh = Number(appState.config.temp_threshold_alarm) || 60;
+
+  list.slice(0, 4).forEach((item, idx) => {
+    const li = document.createElement("li");
+    li.className = "recent-log-item";
+
+    const left = document.createElement("div");
+    left.className = "recent-log-left";
+
+    const av = document.createElement("div");
+    av.className = "log-avatar";
+    av.textContent = `#${list.length - idx}`;
+
+    const txt = document.createElement("div");
+    txt.className = "log-text";
+    const strong = document.createElement("strong");
+    strong.textContent = `${formatNum(item.voltage, 2)} V  |  ${formatNum(item.current_ma, 2)} mA  |  ${formatSmartWatt(item.power_w)} W`;
+    const sub = document.createElement("span");
+    sub.textContent = `${item.label} WIB  -  ${Math.round(item.lux)} Lux  -  ${formatNum(item.temperature, 1)} C`;
+    txt.append(strong, sub);
+
+    left.append(av, txt);
+
+    const badge = document.createElement("span");
+    const isAlarm = item.temperature >= alarmTh;
+    const isWarn = item.temperature >= warnTh;
+    badge.className = "status-tag-soft" + (isAlarm ? " bad" : isWarn ? " warn" : "");
+    badge.textContent = isAlarm ? "Overheat" : isWarn ? "Hangat" : "Normal";
+
+    li.append(left, badge);
+    feedEl.appendChild(li);
+  });
+}
+
+function renderActivityFeed() {
   const tableBody = document.getElementById("historyActivityBody");
+  if (!tableBody) return;
   const logs = appState.activityLogs || [];
+  tableBody.replaceChildren();
 
-  if (feedEl) {
-    feedEl.replaceChildren();
-    if (logs.length === 0) {
-      const li = document.createElement("li");
-      li.className = "empty-note";
-      li.textContent = "Belum ada catatan aktivitas sistem.";
-      feedEl.appendChild(li);
-    } else {
-      logs.slice(0, 6).forEach((item) => {
-        const li = document.createElement("li");
-        const meta = document.createElement("div");
-        meta.className = "activity-meta";
-        const actor = document.createElement("span");
-        actor.textContent = `${item.actor_type} - ${item.actor_name}`;
-        const time = document.createElement("span");
-        time.textContent = formatTime(item.created_at);
-        meta.append(actor, time);
-
-        const desc = document.createElement("div");
-        desc.textContent = item.description;
-        li.append(meta, desc);
-        feedEl.appendChild(li);
-      });
-    }
+  if (logs.length === 0) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 5;
+    td.className = "empty-note";
+    td.textContent = "Belum ada catatan aktivitas.";
+    tr.appendChild(td);
+    tableBody.appendChild(tr);
+    return;
   }
 
-  if (tableBody) {
-    tableBody.replaceChildren();
-    if (logs.length === 0) {
-      const tr = document.createElement("tr");
+  logs.slice(0, 40).forEach((item) => {
+    const tr = document.createElement("tr");
+    [
+      formatDateTime(item.created_at),
+      item.actor_type,
+      item.actor_name,
+      item.event_type,
+      item.description
+    ].forEach((val) => {
       const td = document.createElement("td");
-      td.colSpan = 5;
-      td.className = "empty-note";
-      td.textContent = "Belum ada catatan aktivitas.";
+      td.textContent = val || "--";
       tr.appendChild(td);
-      tableBody.appendChild(tr);
-    } else {
-      logs.slice(0, 40).forEach((item) => {
-        const tr = document.createElement("tr");
-        [
-          formatDateTime(item.created_at),
-          item.actor_type,
-          item.actor_name,
-          item.event_type,
-          item.description
-        ].forEach((val) => {
-          const td = document.createElement("td");
-          td.textContent = val || "--";
-          tr.appendChild(td);
-        });
-        tableBody.appendChild(tr);
-      });
-    }
-  }
+    });
+    tableBody.appendChild(tr);
+  });
 }
 
 // ----------------------------------------------------------------------------
-// MODE 1: SIMULATOR FISIKA PANEL SURYA (INTERAKTIF TANPA HARDWARE)
+// MODE 1: SIMULATOR FISIKA PANEL SURYA
 // ----------------------------------------------------------------------------
 function seedSimulatorHistory() {
   const now = Date.now();
@@ -643,12 +663,11 @@ function seedSimulatorHistory() {
   for (let i = 47; i >= 0; i--) {
     const ts = new Date(now - i * 30 * 60 * 1000);
     const hour = ts.getHours() + ts.getMinutes() / 60;
-    // Kurva iradiasi matahari realistis (puncak pukul 12:00)
     const sunFactor = Math.max(0, Math.sin(((hour - 6) / 12) * Math.PI));
     const lux = hour >= 6 && hour <= 18 ? Math.round(1200 + sunFactor * 68000 + Math.random() * 2500) : Math.round(Math.random() * 15);
     const voltage = sunFactor > 0.05 ? Number((14.8 + sunFactor * 4.2 + (Math.random() - 0.5) * 0.3).toFixed(2)) : 0.12;
-    const current_ma = sunFactor > 0.05 ? Number((40 + sunFactor * 460 + Math.random() * 20).toFixed(1)) : 0.0;
-    const power_w = Number(((voltage * current_ma) / 1000).toFixed(2));
+    const current_ma = sunFactor > 0.05 ? Number((40 + sunFactor * 460 + Math.random() * 20).toFixed(2)) : 0.0;
+    const power_w = Number(((voltage * current_ma) / 1000).toFixed(4));
     energyAcc += power_w * 0.5;
     const temperature = Number((26.5 + sunFactor * 21.0 + (Math.random() - 0.5) * 0.8).toFixed(1));
 
@@ -657,20 +676,20 @@ function seedSimulatorHistory() {
       voltage,
       current_ma,
       power_w,
-      energy_wh: Number(energyAcc.toFixed(2)),
+      energy_wh: Number(energyAcc.toFixed(3)),
       lux,
       temperature
     });
   }
 
   appState.historyLogs = points;
-  appState.telemetry.energy_wh = Number(energyAcc.toFixed(2));
+  appState.telemetry.energy_wh = Number(energyAcc.toFixed(3));
   appState.activityLogs = [
     {
       actor_type: "SYSTEM",
       actor_name: "Simulator",
       event_type: "BOOT",
-      description: "Mode Simulasi SolarMonitor aktif (data uji 24 jam dimuat). Ubah ke Supabase di Settings saat node siap.",
+      description: "Mode Simulasi SolarMonitor aktif.",
       created_at: new Date().toISOString()
     }
   ];
@@ -701,15 +720,16 @@ function evaluateSimulatorPhysics(dtSec) {
   t.temperature = Number((t.temperature + (targetTemp - t.temperature) * 0.2).toFixed(1));
 
   const luxRatio = Math.min(1, t.lux / 80000);
-  t.voltage = t.lux > 50 ? Number((14.2 + Math.pow(luxRatio, 0.3) * 5.0 + (Math.random() - 0.5) * 0.15).toFixed(2)) : 0.15;
-  t.current_ma = t.lux > 50 ? Number((12 + luxRatio * 510 + (Math.random() - 0.5) * 8).toFixed(1)) : 0.0;
-  t.power_w = Number(((t.voltage * t.current_ma) / 1000).toFixed(2));
-  t.energy_wh = Number((t.energy_wh + t.power_w * (dtSec / 3600)).toFixed(3));
+  t.voltage = t.lux > 50 ? Number((3.8 + Math.pow(luxRatio, 0.3) * 1.4 + (Math.random() - 0.5) * 0.08).toFixed(2)) : 0.15;
+  t.current_ma = t.lux > 50 ? Number((12 + luxRatio * 340 + (Math.random() - 0.5) * 6).toFixed(2)) : 0.1;
+  t.power_w = Number(((t.voltage * t.current_ma) / 1000).toFixed(4));
+  t.energy_wh = Number((t.energy_wh + t.power_w * (dtSec / 3600)).toFixed(4));
 }
 
 function startSimulatorMode() {
   stopActiveConnections();
   appState.role = "admin";
+  appState.recentLogs = [];
   appState.telemetry = {
     ...createEmptyTelemetry(),
     lux: 38000,
@@ -729,6 +749,7 @@ function startSimulatorMode() {
   if (appState.activePage === "history") loadHistoryData();
 
   simIntervalId = setInterval(() => {
+    if (!appState.autoSyncEnabled) return;
     evaluateSimulatorPhysics(2);
     pushRealtimePoint(appState.telemetry);
     renderAll();
@@ -736,13 +757,14 @@ function startSimulatorMode() {
 }
 
 // ----------------------------------------------------------------------------
-// MODE 2: SUPABASE CLOUD (POSTGRESQL + PUBLIC READ + REALTIME + ADMIN WRITE)
+// MODE 2: SUPABASE CLOUD
 // ----------------------------------------------------------------------------
 async function startSupabaseMode() {
   stopActiveConnections();
   lastPushedSeenAt = null;
   appState.telemetry = createEmptyTelemetry();
   appState.realtimeSeries = [];
+  appState.recentLogs = [];
   updateRealtimeCharts();
   renderAll();
 
@@ -757,7 +779,6 @@ async function startSupabaseMode() {
     const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm");
     supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
 
-    // Cek sesi user jika ada (opsional karena baca telemetry diizinkan publik via RLS)
     const { data: sessionData } = await supabaseClient.auth.getSession();
     if (sessionData?.session?.user) {
       await handleSupabaseUser(sessionData.session.user);
@@ -805,7 +826,9 @@ async function handleSupabaseUser(user) {
 function startSupabasePolling() {
   if (supabasePollIntervalId) clearInterval(supabasePollIntervalId);
   supabasePollIntervalId = setInterval(() => {
-    fetchSupabaseInitialState(false);
+    if (appState.autoSyncEnabled) {
+      fetchSupabaseInitialState(false);
+    }
   }, 4000);
 }
 
@@ -845,12 +868,14 @@ async function fetchSupabaseInitialState(includeSeries = false) {
     const recent = [...logsRes.data].reverse();
     appState.realtimeSeries = recent.map((r) => ({
       label: formatTime(r.recorded_at),
+      recorded_at: r.recorded_at,
       voltage: Number(r.voltage) || 0,
       current_ma: Number(r.current_ma) || 0,
       power_w: Number(r.power_w) || 0,
       lux: Number(r.lux) || 0,
       temperature: Number(r.temperature) || 0
     }));
+    appState.recentLogs = [...appState.realtimeSeries].reverse();
     lastPushedSeenAt = recent[recent.length - 1].recorded_at;
     updateRealtimeCharts();
   }
@@ -879,7 +904,7 @@ function subscribeSupabaseRealtime() {
       "postgres_changes",
       { event: "*", schema: "public", table: "solar_state", filter: `device_id=eq.${deviceId}` },
       (payload) => {
-        if (payload.new) {
+        if (payload.new && appState.autoSyncEnabled) {
           appState.telemetry = payload.new;
           pushRealtimePoint(payload.new);
           renderAll();
@@ -972,6 +997,7 @@ async function loadHistoryData() {
   appState.filteredHistory = rows;
   renderHistoryAnalytics(rows);
   renderHistoryTable(rows);
+  return rows;
 }
 
 function renderHistoryAnalytics(rows) {
@@ -988,8 +1014,8 @@ function renderHistoryAnalytics(rows) {
     const lastE = Number(rows[rows.length - 1].energy_wh) || 0;
     const deltaE = Math.max(0, lastE - firstE);
 
-    setText("histPeakPower", peakPower.toFixed(peakPower > 0 && peakPower < 0.1 ? 4 : 2));
-    setText("histDeltaEnergy", deltaE.toFixed(deltaE > 0 && deltaE < 0.1 ? 4 : 2));
+    setText("histPeakPower", formatSmartWatt(peakPower));
+    setText("histDeltaEnergy", formatSmartWatt(deltaE));
     setText("histAvgLux", Math.round(avgLux).toLocaleString("id-ID"));
     setText("histAvgTemp", avgTemp.toFixed(1));
   }
@@ -1031,7 +1057,7 @@ function renderHistoryTable(rows) {
       formatDateTime(r.recorded_at),
       formatNum(r.voltage, 2),
       formatNum(r.current_ma, 2),
-      formatNum(r.power_w, Number(r.power_w) > 0 && Number(r.power_w) < 0.1 ? 4 : 2),
+      formatSmartWatt(r.power_w),
       Math.round(Number(r.lux) || 0).toLocaleString("id-ID"),
       formatNum(r.temperature, 1)
     ].forEach((val) => {
@@ -1043,9 +1069,12 @@ function renderHistoryTable(rows) {
   });
 }
 
-function exportHistoryCsv() {
-  const rows = appState.filteredHistory || appState.historyLogs || [];
+async function exportHistoryCsv() {
+  let rows = appState.filteredHistory || [];
   if (rows.length === 0) {
+    rows = await loadHistoryData();
+  }
+  if (!rows || rows.length === 0) {
     alert("Tidak ada data logging untuk diexport.");
     return;
   }
@@ -1057,9 +1086,7 @@ function exportHistoryCsv() {
   const lines = [
     headers.join(","),
     ...rows.map((r) =>
-      [
-        r.recorded_at, r.voltage, r.current_ma, r.power_w, r.energy_wh, r.lux, r.temperature
-      ].join(",")
+      [r.recorded_at, r.voltage, r.current_ma, r.power_w, r.energy_wh, r.lux, r.temperature].join(",")
     )
   ];
 
@@ -1134,6 +1161,16 @@ function startActiveBackend() {
   else startSimulatorMode();
 }
 
+function triggerManualSync() {
+  if (appState.settings.mode === "supabase") {
+    fetchSupabaseInitialState(true);
+  } else {
+    evaluateSimulatorPhysics(2);
+    pushRealtimePoint(appState.telemetry);
+    renderAll();
+  }
+}
+
 function bindEvents() {
   document.querySelectorAll(".nav-item, .mob-nav-item").forEach((btn) => {
     btn.addEventListener("click", () => navigateTo(btn.dataset.page));
@@ -1151,12 +1188,41 @@ function bindEvents() {
     document.getElementById("sidebarBackdrop")?.classList.remove("show");
   });
 
+  // Search bar filter & Ctrl+K shortcut
+  const searchInput = document.getElementById("globalSearchInput");
+  searchInput?.addEventListener("input", (e) => {
+    appState.searchQuery = e.target.value;
+    renderOverviewRecentLogs();
+  });
+  document.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      searchInput?.focus();
+    }
+  });
+
+  // Sync & Export shortcuts
+  ["headerSyncBtn", "btnDashSyncNow", "btnTrackerRefresh"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("click", triggerManualSync);
+  });
+  document.getElementById("btnDashExportCsv")?.addEventListener("click", exportHistoryCsv);
+  document.getElementById("btnExportCsv")?.addEventListener("click", exportHistoryCsv);
+
+  // Pause / Resume auto-sync (Uptime Tracker button)
+  document.getElementById("btnToggleSync")?.addEventListener("click", () => {
+    appState.autoSyncEnabled = !appState.autoSyncEnabled;
+    document.getElementById("syncPauseIcon")?.classList.toggle("hidden", !appState.autoSyncEnabled);
+    document.getElementById("syncPlayIcon")?.classList.toggle("hidden", appState.autoSyncEnabled);
+    renderAll();
+  });
+
+  // History filter
   document.getElementById("historyRangeSelect")?.addEventListener("change", (e) => {
     document.getElementById("customDateWrap")?.classList.toggle("hidden", e.target.value !== "custom");
   });
   document.getElementById("btnLoadHistory")?.addEventListener("click", loadHistoryData);
-  document.getElementById("btnExportCsv")?.addEventListener("click", exportHistoryCsv);
 
+  // Settings Backend
   document.getElementById("cfgBackendMode")?.addEventListener("change", (e) => {
     toggleBackendFields(e.target.value);
   });
@@ -1170,6 +1236,7 @@ function bindEvents() {
       deviceId: document.getElementById("cfgDeviceId").value.trim() || "ESP32_SOLAR_01"
     });
     appState.realtimeSeries = [];
+    appState.recentLogs = [];
     appState.historyLogs = [];
     appState.filteredHistory = [];
     appState.activityLogs = [];
@@ -1209,7 +1276,7 @@ function bindEvents() {
 
       if (error) {
         alert("Gagal menyimpan ke Supabase: " + error.message);
-        await fetchSupabaseInitialState();
+        await fetchSupabaseInitialState(false);
         return;
       }
     }
@@ -1233,7 +1300,7 @@ function bindEvents() {
     const submitBtn = e.target.querySelector('button[type="submit"]');
     if (!supabaseClient) {
       if (errEl) {
-        errEl.textContent = "Koneksi Supabase belum aktif. Simpan URL & Anon Key di Settings terlebih dahulu.";
+        errEl.textContent = "Koneksi Supabase belum aktif. Simpan URL & Key di Settings terlebih dahulu.";
         errEl.classList.remove("hidden");
       }
       return;
@@ -1274,13 +1341,8 @@ function bindEvents() {
       alert("Gagal mereset data: " + error.message);
     } else {
       alert(`Berhasil membersihkan ${data?.deleted_rows ?? 0} baris log uji.`);
-      await fetchSupabaseInitialState();
+      await fetchSupabaseInitialState(true);
     }
-  });
-
-  document.getElementById("themeToggleBtn")?.addEventListener("click", () => {
-    const nextTheme = getCurrentTheme() === "dark" ? "light" : "dark";
-    applyTheme(nextTheme);
   });
 }
 
@@ -1301,33 +1363,30 @@ function initPwaSupport() {
     navigator.serviceWorker.register("./sw.js").catch(() => {});
   }
 
-  const installBtn = document.getElementById("installAppBtn");
+  const installBtns = [
+    document.getElementById("installAppBtn"),
+    document.getElementById("sidebarInstallBtn")
+  ].filter(Boolean);
   const guideModal = document.getElementById("installGuideModal");
-
-  if (isRunningStandalone()) {
-    installBtn?.classList.add("hidden");
-  } else {
-    installBtn?.classList.remove("hidden");
-  }
 
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
     deferredInstallPrompt = e;
-    if (!isRunningStandalone()) installBtn?.classList.remove("hidden");
   });
 
-  installBtn?.addEventListener("click", async () => {
+  const handleInstallClick = async () => {
     if (deferredInstallPrompt) {
       deferredInstallPrompt.prompt();
       const choice = await deferredInstallPrompt.userChoice;
       if (choice?.outcome === "accepted") {
         deferredInstallPrompt = null;
-        installBtn.classList.add("hidden");
       }
       return;
     }
     guideModal?.classList.remove("hidden");
-  });
+  };
+
+  installBtns.forEach((btn) => btn.addEventListener("click", handleInstallClick));
 
   document.getElementById("closeInstallGuideBtn")?.addEventListener("click", () => {
     guideModal?.classList.add("hidden");
@@ -1355,7 +1414,6 @@ function initPwaSupport() {
 
   window.addEventListener("appinstalled", () => {
     deferredInstallPrompt = null;
-    installBtn?.classList.add("hidden");
     guideModal?.classList.add("hidden");
   });
 }
@@ -1364,9 +1422,7 @@ function initPwaSupport() {
 // INISIALISASI SAAT HALAMAN SIAP
 // ----------------------------------------------------------------------------
 document.addEventListener("DOMContentLoaded", () => {
-  applyTheme(getCurrentTheme());
   initCharts();
-  applyTheme(getCurrentTheme());
   bindEvents();
   initPwaSupport();
   startActiveBackend();

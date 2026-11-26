@@ -1,13 +1,13 @@
 {
-  "name": "SolarMonitor - IoT Panel Surya",
+  "name": "SolarMonitor - Dashboard Panel Surya IoT",
   "short_name": "SolarMonitor",
   "description": "Aplikasi Monitoring Parameter Kelistrikan (INA219), Intensitas Cahaya (BH1750), dan Temperatur Panel Surya (DS18B20) Berbasis ESP32",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#000000",
-  "theme_color": "#000000",
+  "background_color": "#F5F7FB",
+  "theme_color": "#1E40AF",
   "icons": [
     {
       "src": "./assets/icon-192.png",

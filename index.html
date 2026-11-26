@@ -1,28 +1,28 @@
 <!DOCTYPE html>
-<html lang="id" class="dark">
+<html lang="id">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" id="metaThemeColor" content="#000000">
+  <meta name="theme-color" id="metaThemeColor" content="#1E40AF">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>SolarMonitor - Telemetry &amp; Data Logging Panel Surya</title>
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>SolarMonitor - Dashboard Monitoring Panel Surya IoT</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./css/styles.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" defer></script>
 </head>
 <body>
   <div class="app-shell">
-    <!-- Sidebar Backdrop (Mobile/Tablet Drawer) -->
+    <!-- Mobile Sidebar Backdrop -->
     <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
 
-    <!-- SIDEBAR NAVIGATION (DESKTOP) -->
+    <!-- SIDEBAR NAVIGATION (DONEZO STYLE - COBALT BLUE) -->
     <aside id="sidebar" class="sidebar">
       <div class="sidebar-brand">
         <div class="brand-logo" aria-hidden="true">
@@ -43,517 +43,481 @@
         </div>
       </div>
 
+      <div class="sidebar-section-label">MENU</div>
       <nav class="sidebar-nav" aria-label="Navigasi Utama">
         <button class="nav-item active" data-page="overview" type="button">
-          <svg class="nav-svg" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"></rect><line x1="12" y1="3" x2="12" y2="21"></line></svg>
-          <span>Overview</span>
+          <svg class="nav-svg" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>
+          <span>Dashboard</span>
         </button>
         <button class="nav-item" data-page="electrical" type="button">
           <svg class="nav-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-          <span>Electrical Telemetry</span>
+          <span>Electrical</span>
+          <span id="navSensorCount" class="nav-pill-count">3/3</span>
         </button>
         <button class="nav-item" data-page="environment" type="button">
-          <svg class="nav-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="M2 12h2"></path><path d="M20 12h2"></path></svg>
+          <svg class="nav-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M2 12h2M20 12h2"></path></svg>
           <span>Solar &amp; Thermal</span>
         </button>
         <button class="nav-item" data-page="history" type="button">
-          <svg class="nav-svg" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l4 2"></path></svg>
+          <svg class="nav-svg" viewBox="0 0 24 24"><path d="M3 3v18h18"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg>
           <span>History &amp; Logs</span>
         </button>
+
+        <div class="sidebar-section-label" style="margin-top: 14px;">GENERAL</div>
         <button class="nav-item" data-page="settings" type="button">
-          <svg class="nav-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          <svg class="nav-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l-.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
           <span>Settings</span>
         </button>
       </nav>
 
+      <!-- Bottom Dark-Cobalt PWA Promo Card (Matching Donezo "Download our Mobile App") -->
       <div class="sidebar-footer">
-        <div class="device-chip">
-          <span class="chip-label">NODE ID</span>
-          <strong id="sidebarDeviceId">ESP32_SOLAR_01</strong>
-        </div>
-        <div class="sidebar-meta-row">
-          <span id="backendBadge" class="meta-chip">Simulasi</span>
-          <button id="authActionBtn" class="meta-chip clickable" type="button">
-            <span id="userRoleLabel">Demo Mode</span>
-          </button>
+        <div class="pwa-promo-card">
+          <div class="pwa-promo-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="5" y="2" width="14" height="20" rx="2"></rect>
+              <line x1="12" y1="18" x2="12.01" y2="18"></line>
+            </svg>
+          </div>
+          <h4>Install Aplikasi<br>Mobile PWA</h4>
+          <p>Pantau panel surya dari HP secara praktis</p>
+          <button id="sidebarInstallBtn" class="pwa-promo-btn" type="button">Install App</button>
         </div>
       </div>
     </aside>
 
     <!-- MAIN WORKSPACE -->
     <div class="main-area">
-      <!-- BLYNK-STYLE TOP APP HEADER -->
-      <header class="blynk-header">
-        <div class="blynk-header-inner">
-          <div class="header-title-wrap">
-            <button id="menuToggleBtn" class="menu-toggle" type="button" aria-label="Buka Menu">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <line x1="3" y1="6" x2="21" y2="6"></line>
-                <line x1="3" y1="12" x2="21" y2="12"></line>
-                <line x1="3" y1="18" x2="21" y2="18"></line>
-              </svg>
-            </button>
-            <div class="brand-title-stack">
-              <h2 id="pageTitle" class="brand-main-title">SolarMonitor<br>Panel</h2>
-              <p id="pageSubtitle" class="topbar-subtitle hidden">ESP32 Solar Telemetry</p>
-            </div>
+      <!-- TOP FLOATING BAR (DONEZO STYLE) -->
+      <header class="top-header">
+        <div class="top-header-left">
+          <button id="menuToggleBtn" class="menu-toggle" type="button" aria-label="Buka Menu">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+
+          <div class="search-pill">
+            <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="search" id="globalSearchInput" placeholder="Cari log atau parameter..." aria-label="Cari log atau parameter">
+            <span class="kbd-hint">Ctrl K</span>
+          </div>
+        </div>
+
+        <div class="top-header-right">
+          <div id="heartbeatBadge" class="status-pill offline">
+            <span class="status-dot"></span>
+            <span id="heartbeatText">ESP32 OFFLINE</span>
           </div>
 
-          <div class="header-pills-right">
-            <!-- Status Pill: ESP32 OFFLINE / ONLINE -->
-            <div id="heartbeatBadge" class="blynk-status-pill offline">
-              <span class="led-pip"></span>
-              <span id="heartbeatText">ESP32<br>OFFLINE</span>
+          <button id="installAppBtn" class="icon-circle-btn" type="button" title="Install Aplikasi PWA" aria-label="Install Aplikasi">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </button>
+
+          <button id="headerSyncBtn" class="icon-circle-btn" type="button" title="Muat Ulang Data" aria-label="Sync Data">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+          </button>
+
+          <button id="authActionBtn" class="profile-chip" type="button" title="Status Node & Akun">
+            <div class="profile-avatar" aria-hidden="true">SM</div>
+            <div class="profile-meta">
+              <strong id="sidebarDeviceId">ESP32_SOLAR_01</strong>
+              <span><em id="backendBadge">Supabase</em> &middot; <em id="userRoleLabel">Publik</em></span>
             </div>
-
-            <!-- Install App Button -->
-            <button id="installAppBtn" class="blynk-install-btn" type="button" title="Pasang Aplikasi ke HP">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
-              </svg>
-              <span>Install</span>
-            </button>
-
-            <!-- Light / Dark Theme Toggle Button -->
-            <button id="themeToggleBtn" class="blynk-gear-btn" type="button" aria-label="Ganti Tema Terang / Gelap" title="Ganti Dark / Light Mode">
-              <svg id="themeIconSun" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="5"></circle>
-                <line x1="12" y1="1" x2="12" y2="3"></line>
-                <line x1="12" y1="21" x2="12" y2="23"></line>
-                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                <line x1="1" y1="12" x2="3" y2="12"></line>
-                <line x1="21" y1="12" x2="23" y2="12"></line>
-                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-              </svg>
-              <svg id="themeIconMoon" class="hidden" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-              </svg>
-            </button>
-
-            <!-- Settings Gear Button -->
-            <button id="headerSettingsBtn" class="blynk-gear-btn" type="button" data-goto="settings" aria-label="Pengaturan">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="3"></circle>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-              </svg>
-            </button>
-          </div>
+          </button>
         </div>
       </header>
 
       <!-- ALERT BANNER -->
       <div id="alertBanner" class="alert-banner hidden" role="alert">
-        <span id="alertBannerIcon" class="alert-tag">ALERT</span>
-        <div id="alertBannerText">Peringatan Sistem</div>
+        <span id="alertBannerIcon" class="alert-tag">INFO</span>
+        <div id="alertBannerText">Menunggu data sensor...</div>
       </div>
 
       <!-- MAIN PAGE CONTAINER -->
       <main class="content">
-        <!-- ==================== HALAMAN 1: OVERVIEW ==================== -->
+        <!-- ==================== HALAMAN 1: DASHBOARD OVERVIEW (DONEZO BENTO) ==================== -->
         <section id="page-overview" class="page active">
-          <!-- 1. System Health Strip (2x2 Grid) -->
-          <div class="health-grid-2x2">
-            <!-- WiFi Status -->
-            <div class="health-tile">
-              <div class="health-icon-wrap">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
-                  <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
-                  <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
-                  <line x1="12" y1="20" x2="12.01" y2="20"></line>
-                </svg>
-              </div>
-              <div class="health-info">
-                <span class="micro-slug">WIFI NODE</span>
-                <div class="health-val-row">
-                  <span id="ovWifiDot" class="led-pip red"></span>
-                  <strong id="ovWifiStatus">Offline</strong>
-                </div>
-                <small id="ovLastSeen" class="micro-sub">Update: --</small>
-              </div>
+          <!-- Title & Action Row -->
+          <div class="page-head-row">
+            <div>
+              <h2 id="pageTitle" class="page-h1">Dashboard</h2>
+              <p id="pageSubtitle" class="page-sub">Pantau parameter kelistrikan, intensitas cahaya, dan suhu panel surya secara real-time.</p>
             </div>
-
-            <!-- Uptime -->
-            <div class="health-tile">
-              <div class="health-icon-wrap">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <polyline points="12 6 12 12 16 14"></polyline>
+            <div class="page-head-actions">
+              <button id="btnDashSyncNow" class="btn-cobalt-pill" type="button">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="23 4 23 10 17 10"></polyline>
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
                 </svg>
-              </div>
-              <div class="health-info">
-                <span class="micro-slug">UPTIME ESP32</span>
-                <div class="health-val-row">
-                  <strong id="ovUptime">00h 00m</strong>
-                </div>
-                <small id="ovLastSeenSmall" class="micro-sub">0s</small>
-              </div>
-            </div>
-
-            <!-- Thermal Status -->
-            <div class="health-tile">
-              <div class="health-icon-wrap">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path>
-                </svg>
-              </div>
-              <div class="health-info">
-                <span class="micro-slug">THERMAL PANEL</span>
-                <div class="health-val-row">
-                  <span id="ovThermalDot" class="led-pip red"></span>
-                  <strong id="ovThermalHealth">Offline</strong>
-                </div>
-                <small id="ovTempHint" class="micro-sub">Batas 60C</small>
-              </div>
-            </div>
-
-            <!-- Sensor Bus Health -->
-            <div class="health-tile">
-              <div class="health-icon-wrap">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="4" y="4" width="16" height="16" rx="2"></rect>
-                  <rect x="9" y="9" width="6" height="6"></rect>
-                  <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"></path>
-                </svg>
-              </div>
-              <div class="health-info">
-                <span class="micro-slug">SENSOR BUS</span>
-                <div class="health-val-row">
-                  <span id="ovBusDot" class="led-pip red"></span>
-                  <strong id="ovBusHealth">0/3 Ready</strong>
-                </div>
-                <small class="micro-sub">I2C + 1-Wire</small>
-              </div>
+                <span>Sync Data</span>
+              </button>
+              <button id="btnDashExportCsv" class="btn-outline-pill" type="button">Export CSV</button>
             </div>
           </div>
 
-          <!-- 2. SOLAR & THERMAL SECTION (3-Column Horizontal Cards) -->
-          <div class="section-label-row">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="4"></circle>
-              <path d="M12 2v2"></path>
-              <path d="M12 20v2"></path>
-              <path d="M2 12h2"></path>
-              <path d="M20 12h2"></path>
-            </svg>
-            <span>SOLAR &amp; THERMAL</span>
-          </div>
-
-          <div class="env-trio-grid">
-            <!-- Lux (BH1750) -->
-            <div class="env-trio-card">
-              <div class="env-trio-top">
-                <span class="micro-slug">CAHAYA</span>
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="4"></circle>
-                  <path d="M12 3v2M12 19v2M3 12h2M19 12h2"></path>
-                </svg>
+          <!-- ROW 1: 4 KPI CARDS (1 Hero Cobalt Gradient + 3 Crisp White Cards) -->
+          <div class="kpi-grid-4">
+            <!-- Hero Cobalt Card: Daya Aktif -->
+            <div class="kpi-card kpi-hero" data-goto="electrical">
+              <div class="kpi-top">
+                <span class="kpi-label">Daya Aktif Panel</span>
+                <span class="kpi-arrow-circle" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg>
+                </span>
               </div>
-              <div class="env-trio-val">
+              <div class="kpi-value-row">
+                <span id="ovPower">--</span><small>W</small>
+              </div>
+              <div class="kpi-foot">
+                <span id="ovPowerMwBadge" class="kpi-mini-badge">-- mW</span>
+                <span class="kpi-foot-text">Output INA219 sesaat</span>
+              </div>
+            </div>
+
+            <!-- White Card 2: Tegangan -->
+            <div class="kpi-card" data-goto="electrical">
+              <div class="kpi-top">
+                <span class="kpi-label">Tegangan Panel</span>
+                <span class="kpi-arrow-circle" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg>
+                </span>
+              </div>
+              <div class="kpi-value-row">
+                <span id="ovVoltage">--</span><small>V</small>
+              </div>
+              <div class="kpi-foot">
+                <span class="kpi-mini-badge">INA219</span>
+                <span id="ovWifiStatus" class="kpi-foot-text">Menunggu node</span>
+              </div>
+            </div>
+
+            <!-- White Card 3: Arus -->
+            <div class="kpi-card" data-goto="electrical">
+              <div class="kpi-top">
+                <span class="kpi-label">Arus Keluaran</span>
+                <span class="kpi-arrow-circle" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg>
+                </span>
+              </div>
+              <div class="kpi-value-row">
+                <span id="ovCurrent">--</span><small>mA</small>
+              </div>
+              <div class="kpi-foot">
+                <span id="ovCurrentAmpBadge" class="kpi-mini-badge">0.0000 A</span>
+                <span class="kpi-foot-text">Kalibrasi 16V 400mA</span>
+              </div>
+            </div>
+
+            <!-- White Card 4: Intensitas Cahaya -->
+            <div class="kpi-card" data-goto="environment">
+              <div class="kpi-top">
+                <span class="kpi-label">Intensitas Cahaya</span>
+                <span class="kpi-arrow-circle" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg>
+                </span>
+              </div>
+              <div class="kpi-value-row">
                 <span id="ovLux">--</span><small>Lux</small>
               </div>
+              <div class="kpi-foot">
+                <span id="ovSolarCond" class="kpi-mini-badge">--</span>
+                <span class="kpi-foot-text">Sensor BH1750</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ROW 2: BENTO 5fr / 3fr / 4fr (Analytics Bar Chart | Thermal Status | Installed Modules) -->
+          <div class="bento-row-mid">
+            <!-- Col 1: Solar Output Analytics (Capsule Bar Chart matching Donezo) -->
+            <div class="card-surface">
+              <div class="card-header-row">
+                <h3 class="card-title">Analitik Tegangan &amp; Daya</h3>
+                <span id="ovLastSeen" class="soft-chip">Sync: --</span>
+              </div>
+              <div class="chart-wrapper overview-bar-wrap">
+                <canvas id="overviewBarChart"></canvas>
+              </div>
             </div>
 
-            <!-- Panel Temp (DS18B20) -->
-            <div class="env-trio-card">
-              <div class="env-trio-top">
-                <span class="micro-slug">SUHU PANEL</span>
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path>
+            <!-- Col 2: Panel Thermal Card (Matching Donezo "Reminders") -->
+            <div class="card-surface thermal-focus-card">
+              <div class="card-header-row">
+                <h3 class="card-title">Suhu Panel</h3>
+                <span id="ovThermalHealth" class="status-tag-soft">Normal</span>
+              </div>
+              <div class="thermal-focus-body">
+                <div class="thermal-big-num">
+                  <span id="ovTempPanel">--</span><small>&deg;C</small>
+                </div>
+                <p id="ovTempHint" class="thermal-meta">Sensor DS18B20 (GPIO 4) &middot; Alarm &ge; 60&deg;C</p>
+              </div>
+              <button class="btn-cobalt-pill full-w" data-goto="environment" type="button">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path></svg>
+                <span>Detail Solar &amp; Termal</span>
+              </button>
+            </div>
+
+            <!-- Col 3: Installed Hardware List (Matching Donezo "Project" list) -->
+            <div class="card-surface">
+              <div class="card-header-row">
+                <h3 class="card-title">Modul Hardware</h3>
+                <span id="ovBusHealth" class="outline-chip">0/3 Ready</span>
+              </div>
+              <div class="module-list">
+                <div class="module-row">
+                  <div class="mod-icon cobalt">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                  </div>
+                  <div class="mod-info">
+                    <strong>INA219 DC Sensor</strong>
+                    <span>I2C 0x40 &middot; V / mA / W</span>
+                  </div>
+                  <span id="ovInaBadge" class="pill-state off">OFFLINE</span>
+                </div>
+
+                <div class="module-row">
+                  <div class="mod-icon sky">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M2 12h2M20 12h2"></path></svg>
+                  </div>
+                  <div class="mod-info">
+                    <strong>BH1750 Lux Meter</strong>
+                    <span>I2C 0x23 &middot; Intensitas Cahaya</span>
+                  </div>
+                  <span id="ovBhBadge" class="pill-state off">OFFLINE</span>
+                </div>
+
+                <div class="module-row">
+                  <div class="mod-icon indigo">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path></svg>
+                  </div>
+                  <div class="mod-info">
+                    <strong>DS18B20 Probe</strong>
+                    <span>1-Wire GPIO 4 &middot; Suhu Panel</span>
+                  </div>
+                  <span id="ovDsBadge" class="pill-state off">OFFLINE</span>
+                </div>
+
+                <div class="module-row">
+                  <div class="mod-icon slate">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="6" y1="10" x2="18" y2="10"></line></svg>
+                  </div>
+                  <div class="mod-info">
+                    <strong>LCD 16x2 I2C</strong>
+                    <span>I2C 0x27 &middot; Display Lokal</span>
+                  </div>
+                  <span id="ovLcdBadge" class="pill-state off">OFFLINE</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ROW 3: BENTO 5fr / 4fr / 3fr (Recent Logs | Semi-Circle Energy Gauge | Dark-Cobalt Uptime Tracker) -->
+          <div class="bento-row-bot">
+            <!-- Col 1: Recent Telemetry Logs (Matching Donezo "Team Collaboration") -->
+            <div class="card-surface">
+              <div class="card-header-row">
+                <h3 class="card-title">Log Pembacaan Terbaru</h3>
+                <button class="outline-chip clickable" data-goto="history" type="button">Lihat Semua</button>
+              </div>
+              <ul id="overviewActivityList" class="recent-log-list">
+                <li class="empty-note">Menunggu aliran data sensor...</li>
+              </ul>
+            </div>
+
+            <!-- Col 2: Semi-Circle Energy Gauge (Matching Donezo "Project Progress") -->
+            <div class="card-surface gauge-card">
+              <div class="card-header-row">
+                <h3 class="card-title">Akumulasi Energi</h3>
+                <span class="soft-chip">Trapezoidal</span>
+              </div>
+              <div class="semi-gauge-wrap">
+                <svg class="semi-gauge-svg" viewBox="0 0 220 124" aria-label="Gauge Akumulasi Energi">
+                  <defs>
+                    <pattern id="cobaltHatch" width="6" height="6" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+                      <line x1="0" y1="0" x2="0" y2="6" stroke="#CBD5E1" stroke-width="2.2"></line>
+                    </pattern>
+                  </defs>
+                  <!-- Background hatched arc -->
+                  <path d="M 22 108 A 88 88 0 0 1 198 108" fill="none" stroke="url(#cobaltHatch)" stroke-width="22" stroke-linecap="round"></path>
+                  <!-- Active Cobalt arc (length ~276.5) -->
+                  <path id="ovEnergyGaugeArc" d="M 22 108 A 88 88 0 0 1 198 108" fill="none" stroke="#1E40AF" stroke-width="22" stroke-linecap="round" stroke-dasharray="276.5" stroke-dashoffset="248"></path>
                 </svg>
+                <div class="semi-gauge-center">
+                  <strong id="ovEnergy">0.0000</strong>
+                  <span>Wh Terkumpul</span>
+                </div>
               </div>
-              <div class="env-trio-val">
-                <span id="ovTempPanel">--</span><small>&deg;C</small>
-              </div>
-            </div>
-
-            <!-- Solar Irradiance Category -->
-            <div class="env-trio-card">
-              <div class="env-trio-top">
-                <span class="micro-slug">KONDISI</span>
-                <span id="ovLightDot" class="led-pip"></span>
-              </div>
-              <div class="env-trio-val cond-val">
-                <span id="ovSolarCond">--</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 3. ELECTRICAL TELEMETRY (2x2 Grid with Glowing Bottom Bars) -->
-          <div class="section-label-row">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-            </svg>
-            <span>ELECTRICAL TELEMETRY (INA219)</span>
-          </div>
-
-          <div class="telemetry-grid-2x3">
-            <!-- Voltage -->
-            <div class="blynk-metric-tile">
-              <div class="tile-head">
-                <span class="micro-slug">TEGANGAN PANEL</span>
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 12l3.5-3.5"></path></svg>
-              </div>
-              <div class="tile-reading">
-                <span id="ovVoltage">--</span>
-                <small>V</small>
+              <div class="gauge-legend-row">
+                <span><i class="dot-cobalt"></i>Energi Wh</span>
+                <span><i class="dot-sky"></i>Target <b id="ovTargetCapLabel">10 Wp</b></span>
               </div>
             </div>
 
-            <!-- Current -->
-            <div class="blynk-metric-tile">
-              <div class="tile-head">
-                <span class="micro-slug">ARUS KELUARAN</span>
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-              </div>
-              <div class="tile-reading">
-                <span id="ovCurrent">--</span>
-                <small>mA</small>
-              </div>
-            </div>
-
-            <!-- Active Power -->
-            <div class="blynk-metric-tile">
-              <div class="tile-head">
-                <span class="micro-slug">DAYA AKTIF</span>
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-              </div>
-              <div class="tile-reading">
-                <span id="ovPower">--</span>
-                <small>W</small>
+            <!-- Col 3: Dark-Cobalt Live Uptime Tracker (Matching Donezo "Time Tracker") -->
+            <div class="uptime-dark-card">
+              <div class="uptime-top-label">Uptime ESP32</div>
+              <div id="ovUptime" class="uptime-clock">00:00:00</div>
+              <div id="ovLastSeenSmall" class="uptime-sub">Auto-Sync Aktif (4 dtk)</div>
+              <div class="uptime-controls">
+                <button id="btnToggleSync" class="uptime-btn-white" type="button" title="Jeda / Lanjutkan Auto-Sync" aria-label="Jeda atau Lanjutkan Auto-Sync">
+                  <svg id="syncPauseIcon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"></rect><rect x="14" y="4" width="4" height="16" rx="1"></rect></svg>
+                  <svg id="syncPlayIcon" class="hidden" viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+                </button>
+                <button id="btnTrackerRefresh" class="uptime-btn-accent" type="button" title="Tarik Data Sekarang" aria-label="Tarik Data Sekarang">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                </button>
               </div>
             </div>
-
-            <!-- Energy -->
-            <div class="blynk-metric-tile">
-              <div class="tile-head">
-                <span class="micro-slug">AKUMULASI ENERGI</span>
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="18" height="10" rx="2"></rect><line x1="22" y1="11" x2="22" y2="13"></line></svg>
-              </div>
-              <div class="tile-reading">
-                <span id="ovEnergy">--</span>
-                <small>Wh</small>
-              </div>
-            </div>
-          </div>
-
-          <!-- 4. HARDWARE MODULES STATUS (2x2 Cards) -->
-          <div class="section-label-row">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="4" y="4" width="16" height="16" rx="2"></rect>
-              <rect x="9" y="9" width="6" height="6"></rect>
-            </svg>
-            <span>MODUL HARDWARE TERPASANG</span>
-          </div>
-
-          <div class="quick-actuators-2x2">
-            <div class="quick-actuator-card module-card">
-              <div class="qa-top">
-                <svg class="qa-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-                <span class="gpio-chip">I2C 0x40</span>
-              </div>
-              <div class="qa-title">INA219 DC Sensor</div>
-              <div class="qa-status">
-                <span id="ovInaBadge" class="state-badge off">OFFLINE</span>
-              </div>
-            </div>
-
-            <div class="quick-actuator-card module-card">
-              <div class="qa-top">
-                <svg class="qa-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M2 12h2M20 12h2"></path></svg>
-                <span class="gpio-chip">I2C 0x23</span>
-              </div>
-              <div class="qa-title">BH1750 Lux Meter</div>
-              <div class="qa-status">
-                <span id="ovBhBadge" class="state-badge off">OFFLINE</span>
-              </div>
-            </div>
-
-            <div class="quick-actuator-card module-card">
-              <div class="qa-top">
-                <svg class="qa-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path></svg>
-                <span class="gpio-chip">GPIO 4</span>
-              </div>
-              <div class="qa-title">DS18B20 Probe</div>
-              <div class="qa-status">
-                <span id="ovDsBadge" class="state-badge off">OFFLINE</span>
-              </div>
-            </div>
-
-            <div class="quick-actuator-card module-card">
-              <div class="qa-top">
-                <svg class="qa-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="6" y1="10" x2="18" y2="10"></line><line x1="6" y1="14" x2="14" y2="14"></line></svg>
-                <span class="gpio-chip">I2C 0x27</span>
-              </div>
-              <div class="qa-title">LCD 16x2 Display</div>
-              <div class="qa-status">
-                <span id="ovLcdBadge" class="state-badge off">OFFLINE</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 5. Recent Activity Terminal Feed -->
-          <div class="panel-box terminal-box" style="margin-top: 16px;">
-            <div class="box-header-row">
-              <span class="micro-slug">RECENT EVENTS &amp; LOGS</span>
-              <button class="btn-link" data-goto="history" type="button">View All</button>
-            </div>
-            <ul id="overviewActivityList" class="activity-feed">
-              <li class="empty-note">Menunggu aliran data sensor...</li>
-            </ul>
           </div>
         </section>
 
         <!-- ==================== HALAMAN 2: ELECTRICAL TELEMETRY ==================== -->
         <section id="page-electrical" class="page">
-          <div class="panel-box hero-power-card">
-            <div class="hero-power-top">
+          <div class="page-head-row">
+            <div>
+              <h2 class="page-h1">Electrical Telemetry</h2>
+              <p class="page-sub">Detail pembacaan sensor INA219: tegangan DC, arus mA, daya sesaat, dan akumulasi energi.</p>
+            </div>
+          </div>
+
+          <div class="hero-cobalt-banner">
+            <div class="hero-banner-top">
               <div>
-                <span class="micro-slug">DAYA PANEL SURYA SESAAT</span>
-                <div class="hero-power-reading">
-                  <span id="elPower">--</span>
-                  <small>W</small>
+                <span class="hero-eyebrow">DAYA PANEL SURYA SESAAT</span>
+                <div class="hero-big-reading">
+                  <span id="elPower">--</span><small>W</small>
                 </div>
               </div>
-              <div class="hero-power-meta-right">
-                <span id="elLoadPct" class="quality-tag good">0.0% KAPASITAS</span>
-              </div>
+              <span id="elLoadPct" class="hero-pill-badge">0.00% DARI 10Wp</span>
             </div>
-
-            <div class="progress-rail">
-              <div id="elLoadBar" class="progress-fill" style="width: 0%;"></div>
+            <div class="hero-progress-rail">
+              <div id="elLoadBar" class="hero-progress-fill" style="width: 0%;"></div>
             </div>
-
-            <div class="power-sub-grid">
-              <div class="sub-box">
-                <span class="micro-slug">DAYA MILLIWATT</span>
+            <div class="hero-sub-split">
+              <div class="hero-sub-box">
+                <span>DAYA MILLIWATT</span>
                 <strong id="elPowerMw">-- mW</strong>
               </div>
-              <div class="sub-box">
-                <span class="micro-slug">ENERGI TOTAL</span>
+              <div class="hero-sub-box">
+                <span>ENERGI TOTAL</span>
                 <strong id="elEnergyKwh">-- kWh</strong>
               </div>
             </div>
           </div>
 
           <div class="two-col-layout">
-            <div class="panel-box chart-box">
-              <h3 class="box-title">Tren Daya (W) &amp; Arus (mA) Real-Time</h3>
+            <div class="card-surface">
+              <h3 class="card-title">Tren Daya (W) &amp; Arus (mA) Real-Time</h3>
               <div class="chart-wrapper">
                 <canvas id="electricalPowerChart"></canvas>
               </div>
             </div>
-            <div class="panel-box chart-box">
-              <h3 class="box-title">Tren Tegangan DC Panel (V) Real-Time</h3>
+            <div class="card-surface">
+              <h3 class="card-title">Tren Tegangan DC Panel (V) Real-Time</h3>
               <div class="chart-wrapper">
                 <canvas id="electricalVoltageChart"></canvas>
               </div>
             </div>
           </div>
 
-          <div class="telemetry-grid-2x3" style="margin-top: 14px;">
-            <div class="blynk-metric-tile">
-              <div class="tile-head">
-                <span class="micro-slug">TEGANGAN BUS</span>
-                <span id="elVoltageQuality" class="quality-tag">--</span>
+          <div class="kpi-grid-4" style="margin-top: 16px;">
+            <div class="kpi-card static-card">
+              <div class="kpi-top">
+                <span class="kpi-label">Tegangan Bus</span>
+                <span id="elVoltageQuality" class="status-tag-soft">--</span>
               </div>
-              <div class="tile-reading">
-                <span id="elVoltage">--</span> <small>V</small>
-              </div>
+              <div class="kpi-value-row"><span id="elVoltage">--</span><small>V</small></div>
             </div>
 
-            <div class="blynk-metric-tile">
-              <div class="tile-head">
-                <span class="micro-slug">ARUS (mA)</span>
-                <span id="elCurrentAmp" class="quality-tag neutral">-- A</span>
+            <div class="kpi-card static-card">
+              <div class="kpi-top">
+                <span class="kpi-label">Arus (mA)</span>
+                <span id="elCurrentAmp" class="soft-chip">-- A</span>
               </div>
-              <div class="tile-reading">
-                <span id="elCurrent">--</span> <small>mA</small>
-              </div>
+              <div class="kpi-value-row"><span id="elCurrent">--</span><small>mA</small></div>
             </div>
 
-            <div class="blynk-metric-tile">
-              <div class="tile-head">
-                <span class="micro-slug">AKUMULASI ENERGI</span>
-                <span class="quality-tag good">TRAPEZOIDAL</span>
+            <div class="kpi-card static-card">
+              <div class="kpi-top">
+                <span class="kpi-label">Akumulasi Energi</span>
+                <span class="soft-chip">Trapezoidal</span>
               </div>
-              <div class="tile-reading">
-                <span id="elEnergy">--</span> <small>Wh</small>
-              </div>
+              <div class="kpi-value-row"><span id="elEnergy">--</span><small>Wh</small></div>
             </div>
 
-            <div class="blynk-metric-tile">
-              <div class="tile-head">
-                <span class="micro-slug">INTERFACE INA219</span>
-                <span class="quality-tag good">I2C 0x40</span>
+            <div class="kpi-card static-card">
+              <div class="kpi-top">
+                <span class="kpi-label">Interface INA219</span>
+                <span class="soft-chip">I2C 0x40</span>
               </div>
-              <div class="tile-reading" style="font-size: 20px;">
-                <span>GPIO 21 / 22</span>
-              </div>
+              <div class="kpi-value-row" style="font-size: 20px;"><span>GPIO 21 / 22</span></div>
             </div>
           </div>
         </section>
 
         <!-- ==================== HALAMAN 3: SOLAR & THERMAL ==================== -->
         <section id="page-environment" class="page">
-          <div class="panel-box">
-            <div class="box-header-row">
-              <span class="micro-slug">RADIASI CAHAYA &amp; TEMPERATUR PANEL</span>
-              <span id="envPanelZone" class="quality-tag good">NORMAL</span>
-            </div>
-
-            <div class="env-hero-split">
-              <div class="env-hero-box">
-                <span class="micro-slug">INTENSITAS CAHAYA (BH1750)</span>
-                <div class="tile-reading">
-                  <span id="envLux">--</span> <small>Lux</small>
-                </div>
-              </div>
-
-              <div class="env-hero-box">
-                <span class="micro-slug">SUHU PANEL (DS18B20)</span>
-                <div class="tile-reading">
-                  <span id="envTempPanel">--</span> <small>&deg;C</small>
-                </div>
-              </div>
-            </div>
-
-            <div class="env-delta-strip">
-              <div class="box-header-row">
-                <span class="micro-slug">KATEGORI PENCAHAYAAN</span>
-                <strong id="envLightCategory">--</strong>
-              </div>
+          <div class="page-head-row">
+            <div>
+              <h2 class="page-h1">Solar &amp; Thermal</h2>
+              <p class="page-sub">Pemantauan intensitas cahaya (BH1750) dan temperatur permukaan panel surya (DS18B20).</p>
             </div>
           </div>
 
-          <div class="telemetry-grid-2x3" style="margin-top: 14px;">
-            <div class="blynk-metric-tile">
-              <div class="tile-head">
-                <span class="micro-slug">AMBANG PERINGATAN HANGAT</span>
-                <span class="quality-tag neutral">DS18B20</span>
+          <div class="kpi-grid-4">
+            <div class="kpi-card kpi-hero static-card">
+              <div class="kpi-top">
+                <span class="kpi-label">Intensitas Cahaya</span>
+                <span class="kpi-mini-badge">BH1750</span>
               </div>
-              <div class="tile-reading">
-                <span id="envWarnThreshold">45.0</span> <small>&deg;C</small>
+              <div class="kpi-value-row"><span id="envLux">--</span><small>Lux</small></div>
+              <div class="kpi-foot">
+                <span id="envLightCategory" class="kpi-foot-text">--</span>
               </div>
             </div>
 
-            <div class="blynk-metric-tile">
-              <div class="tile-head">
-                <span class="micro-slug">AMBANG OVERHEAT DARURAT</span>
-                <span class="quality-tag warn">ALARM</span>
+            <div class="kpi-card static-card">
+              <div class="kpi-top">
+                <span class="kpi-label">Suhu Panel</span>
+                <span id="envPanelZone" class="status-tag-soft">NORMAL</span>
               </div>
-              <div class="tile-reading">
-                <span id="envAlarmThreshold">60.0</span> <small>&deg;C</small>
+              <div class="kpi-value-row"><span id="envTempPanel">--</span><small>&deg;C</small></div>
+              <div class="kpi-foot"><span class="kpi-foot-text">Probe DS18B20 GPIO 4</span></div>
+            </div>
+
+            <div class="kpi-card static-card">
+              <div class="kpi-top">
+                <span class="kpi-label">Ambang Hangat</span>
+                <span class="soft-chip">Warning</span>
               </div>
+              <div class="kpi-value-row"><span id="envWarnThreshold">45.0</span><small>&deg;C</small></div>
+            </div>
+
+            <div class="kpi-card static-card">
+              <div class="kpi-top">
+                <span class="kpi-label">Ambang Overheat</span>
+                <span class="status-tag-soft warn">Alarm</span>
+              </div>
+              <div class="kpi-value-row"><span id="envAlarmThreshold">60.0</span><small>&deg;C</small></div>
             </div>
           </div>
 
-          <div class="panel-box chart-box" style="margin-top: 14px;">
-            <h3 class="box-title">Tren Intensitas Cahaya (Lux) &amp; Suhu Panel (&deg;C) Real-Time</h3>
+          <div class="card-surface" style="margin-top: 16px;">
+            <h3 class="card-title">Tren Intensitas Cahaya (Lux) &amp; Suhu Panel (&deg;C) Real-Time</h3>
             <div class="chart-wrapper tall">
               <canvas id="environmentChart"></canvas>
             </div>
@@ -562,7 +526,17 @@
 
         <!-- ==================== HALAMAN 4: HISTORY & LOGS ==================== -->
         <section id="page-history" class="page">
-          <div class="panel-box filter-bar">
+          <div class="page-head-row">
+            <div>
+              <h2 class="page-h1">History &amp; Logs</h2>
+              <p class="page-sub">Analisis historis, kalkulasi energi periode, tabel data logging, dan export CSV.</p>
+            </div>
+            <div class="page-head-actions">
+              <button id="btnExportCsv" class="btn-cobalt-pill" type="button">Export CSV</button>
+            </div>
+          </div>
+
+          <div class="card-surface filter-bar">
             <div class="filter-controls">
               <div class="field-inline">
                 <label for="historyRangeSelect">RENTANG WAKTU</label>
@@ -581,48 +555,46 @@
                 <input type="date" id="historyEndDate" aria-label="Tanggal Selesai">
               </div>
 
-              <button id="btnLoadHistory" class="btn-primary" type="button">Muat Histori</button>
+              <button id="btnLoadHistory" class="btn-cobalt-pill" type="button">Muat Histori</button>
             </div>
-
-            <button id="btnExportCsv" class="btn-secondary" type="button">Export CSV</button>
           </div>
 
-          <div class="health-grid-2x2" style="margin-top: 14px;">
-            <div class="blynk-metric-tile">
-              <span class="micro-slug">DAYA PUNCAK</span>
-              <div class="tile-reading"><span id="histPeakPower">--</span> <small>W</small></div>
+          <div class="kpi-grid-4" style="margin-top: 16px;">
+            <div class="kpi-card static-card">
+              <span class="kpi-label">Daya Puncak</span>
+              <div class="kpi-value-row"><span id="histPeakPower">--</span><small>W</small></div>
             </div>
-            <div class="blynk-metric-tile">
-              <span class="micro-slug">ENERGI PERIODE</span>
-              <div class="tile-reading"><span id="histDeltaEnergy">--</span> <small>Wh</small></div>
+            <div class="kpi-card static-card">
+              <span class="kpi-label">Energi Periode</span>
+              <div class="kpi-value-row"><span id="histDeltaEnergy">--</span><small>Wh</small></div>
             </div>
-            <div class="blynk-metric-tile">
-              <span class="micro-slug">RATA-RATA CAHAYA</span>
-              <div class="tile-reading"><span id="histAvgLux">--</span> <small>Lux</small></div>
+            <div class="kpi-card static-card">
+              <span class="kpi-label">Rata-rata Cahaya</span>
+              <div class="kpi-value-row"><span id="histAvgLux">--</span><small>Lux</small></div>
             </div>
-            <div class="blynk-metric-tile">
-              <span class="micro-slug">RATA-RATA SUHU PANEL</span>
-              <div class="tile-reading"><span id="histAvgTemp">--</span> <small>&deg;C</small></div>
+            <div class="kpi-card static-card">
+              <span class="kpi-label">Rata-rata Suhu</span>
+              <div class="kpi-value-row"><span id="histAvgTemp">--</span><small>&deg;C</small></div>
             </div>
           </div>
 
           <div class="two-col-layout">
-            <div class="panel-box chart-box">
-              <h3 class="box-title">Grafik Histori Daya (W) &amp; Tegangan (V)</h3>
+            <div class="card-surface">
+              <h3 class="card-title">Grafik Histori Daya (W) &amp; Tegangan (V)</h3>
               <div class="chart-wrapper">
                 <canvas id="historyPowerChart"></canvas>
               </div>
             </div>
-            <div class="panel-box chart-box">
-              <h3 class="box-title">Grafik Histori Cahaya (Lux) &amp; Suhu (&deg;C)</h3>
+            <div class="card-surface">
+              <h3 class="card-title">Grafik Histori Cahaya (Lux) &amp; Suhu (&deg;C)</h3>
               <div class="chart-wrapper">
                 <canvas id="historyTempChart"></canvas>
               </div>
             </div>
           </div>
 
-          <div class="panel-box" style="margin-top: 14px;">
-            <h3 class="box-title">Data Logging Pembacaan Sensor</h3>
+          <div class="card-surface" style="margin-top: 16px;">
+            <h3 class="card-title">Data Logging Pembacaan Sensor</h3>
             <div class="table-scroll">
               <table class="data-table">
                 <thead>
@@ -644,8 +616,8 @@
             </div>
           </div>
 
-          <div class="panel-box" style="margin-top: 14px;">
-            <h3 class="box-title">Audit Trail &amp; Log Aktivitas</h3>
+          <div class="card-surface" style="margin-top: 16px;">
+            <h3 class="card-title">Audit Trail &amp; Log Aktivitas</h3>
             <div class="table-scroll">
               <table class="data-table">
                 <thead>
@@ -669,26 +641,33 @@
 
         <!-- ==================== HALAMAN 5: SETTINGS ==================== -->
         <section id="page-settings" class="page">
+          <div class="page-head-row">
+            <div>
+              <h2 class="page-h1">Settings</h2>
+              <p class="page-sub">Konfigurasi koneksi Supabase Cloud, kapasitas panel, ambang suhu, dan akses Admin.</p>
+            </div>
+          </div>
+
           <div class="two-col-layout" style="margin-top: 0;">
-            <form id="backendConfigForm" class="panel-box form-card">
-              <h3 class="box-title">Koneksi Backend &amp; Sumber Data</h3>
+            <form id="backendConfigForm" class="card-surface form-card">
+              <h3 class="card-title">Koneksi Backend &amp; Sumber Data</h3>
 
               <div class="form-group">
                 <label for="cfgBackendMode">Sumber Data</label>
                 <select id="cfgBackendMode">
-                  <option value="simulator">Simulasi Interaktif (Tanpa Hardware)</option>
                   <option value="supabase">Supabase Cloud (Live ESP32)</option>
+                  <option value="simulator">Simulasi Interaktif (Tanpa Hardware)</option>
                 </select>
               </div>
 
-              <div id="supabaseFields" class="hidden">
+              <div id="supabaseFields">
                 <div class="form-group">
                   <label for="cfgSupabaseUrl">Supabase Project URL</label>
                   <input type="url" id="cfgSupabaseUrl" placeholder="https://xxxxxxxxxxxx.supabase.co">
                 </div>
                 <div class="form-group">
-                  <label for="cfgSupabaseKey">Supabase Anon Public Key</label>
-                  <input type="text" id="cfgSupabaseKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+                  <label for="cfgSupabaseKey">Supabase Publishable / Anon Key</label>
+                  <input type="text" id="cfgSupabaseKey" placeholder="sb_publishable_...">
                 </div>
                 <div class="form-group">
                   <label for="cfgDeviceId">Device ID Target</label>
@@ -697,12 +676,12 @@
               </div>
 
               <div class="form-actions">
-                <button type="submit" class="btn-primary">Simpan &amp; Terapkan Koneksi</button>
+                <button type="submit" class="btn-cobalt-pill">Simpan &amp; Terapkan Koneksi</button>
               </div>
             </form>
 
-            <form id="thresholdForm" class="panel-box form-card">
-              <h3 class="box-title">Parameter Panel &amp; Ambang Batas</h3>
+            <form id="thresholdForm" class="card-surface form-card">
+              <h3 class="card-title">Parameter Panel &amp; Ambang Batas</h3>
 
               <div class="form-group">
                 <label for="cfgCapacityWp">Kapasitas Nominal Panel (Wp)</label>
@@ -730,30 +709,30 @@
               </div>
 
               <div class="form-actions">
-                <button type="submit" id="btnSaveThresholds" class="btn-primary">Simpan Konfigurasi</button>
+                <button type="submit" id="btnSaveThresholds" class="btn-cobalt-pill">Simpan Konfigurasi</button>
               </div>
             </form>
           </div>
 
-          <div class="panel-box" style="margin-top: 14px;">
-            <div class="box-header-row">
+          <div class="card-surface" style="margin-top: 16px;">
+            <div class="card-header-row">
               <div>
-                <h3 class="box-title">Sesi Admin Supabase &amp; Manajemen Data</h3>
-                <p class="muted-text" id="settingsAuthSummary">Dashboard publik aktif. Login Admin diperlukan hanya untuk mengubah konfigurasi cloud atau reset data uji.</p>
+                <h3 class="card-title" style="margin-bottom: 4px;">Sesi Admin Supabase &amp; Manajemen Data</h3>
+                <p class="muted-text" id="settingsAuthSummary">Akses publik aktif (Read-Only). Login sebagai Admin untuk mengubah konfigurasi cloud.</p>
               </div>
               <div class="auth-buttons-row">
-                <button id="btnOpenLoginModal" class="btn-primary hidden" type="button">Login Admin Supabase</button>
-                <button id="btnLogoutSupabase" class="btn-secondary hidden" type="button">Logout</button>
-                <button id="btnResetLogs" class="btn-danger hidden" type="button">Reset Data Uji</button>
+                <button id="btnOpenLoginModal" class="btn-cobalt-pill hidden" type="button">Login Admin Supabase</button>
+                <button id="btnLogoutSupabase" class="btn-outline-pill hidden" type="button">Logout</button>
+                <button id="btnResetLogs" class="btn-danger-pill hidden" type="button">Reset Data Uji</button>
               </div>
             </div>
 
-            <div id="simulatorLabBox" class="sim-lab-box">
+            <div id="simulatorLabBox" class="sim-lab-box hidden">
               <strong>Panel Uji Simulasi Kondisi Matahari</strong>
               <div class="sim-buttons">
-                <button id="btnSimDark" class="btn-secondary" type="button">Malam / Mendung (150 Lux)</button>
-                <button id="btnSimNormal" class="btn-secondary" type="button">Cerah Normal (38.000 Lux)</button>
-                <button id="btnSimPeak" class="btn-danger" type="button">Terik &amp; Panas Tinggi (88.000 Lux / 62&deg;C)</button>
+                <button id="btnSimDark" class="btn-outline-pill" type="button">Malam / Mendung (150 Lux)</button>
+                <button id="btnSimNormal" class="btn-outline-pill" type="button">Cerah Normal (38.000 Lux)</button>
+                <button id="btnSimPeak" class="btn-danger-pill" type="button">Terik &amp; Panas Tinggi (88.000 Lux / 62&deg;C)</button>
               </div>
             </div>
           </div>
@@ -765,24 +744,24 @@
   <!-- MOBILE BOTTOM NAVIGATION BAR (5 TABS) -->
   <nav id="mobileBottomNav" class="mobile-bottom-nav" aria-label="Navigasi Utama HP">
     <button class="mob-nav-item active" data-page="overview" type="button">
-      <svg class="mob-svg" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"></rect><line x1="12" y1="3" x2="12" y2="21"></line></svg>
-      <span>OVERVIEW</span>
+      <svg class="mob-svg" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>
+      <span>Dashboard</span>
     </button>
     <button class="mob-nav-item" data-page="electrical" type="button">
       <svg class="mob-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-      <span>ELECTRIC</span>
+      <span>Electric</span>
     </button>
     <button class="mob-nav-item" data-page="environment" type="button">
       <svg class="mob-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M2 12h2M20 12h2"></path></svg>
-      <span>SOLAR</span>
+      <span>Solar</span>
     </button>
     <button class="mob-nav-item" data-page="history" type="button">
-      <svg class="mob-svg" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l4 2"></path></svg>
-      <span>HISTORY</span>
+      <svg class="mob-svg" viewBox="0 0 24 24"><path d="M3 3v18h18"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg>
+      <span>History</span>
     </button>
     <button class="mob-nav-item" data-page="settings" type="button">
-      <svg class="mob-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-      <span>SETTINGS</span>
+      <svg class="mob-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l-.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      <span>Settings</span>
     </button>
   </nav>
 
@@ -800,8 +779,8 @@
 
         <div class="install-step-box">
           <strong>Opsi 1: Buka di Google Chrome (Android)</strong>
-          <p>Pindahkan halaman ke Google Chrome lalu ketuk tombol <b>Install</b>:</p>
-          <button id="btnOpenInChrome" class="btn-primary" type="button" style="width: 100%; margin-top: 8px;">
+          <p>Pindahkan halaman ke Google Chrome lalu ketuk tombol <b>Install App</b>:</p>
+          <button id="btnOpenInChrome" class="btn-cobalt-pill full-w" type="button" style="margin-top: 8px;">
             Buka di Google Chrome
           </button>
         </div>
@@ -809,13 +788,13 @@
         <div class="install-step-box">
           <strong>Opsi 2: Pasang dari Menu Browser</strong>
           <ol class="install-steps-list">
-            <li>Ketuk ikon menu browser (garis tiga di kanan bawah atau titik tiga di kanan atas).</li>
+            <li>Ketuk ikon menu browser (titik tiga di kanan atas atau garis tiga di kanan bawah).</li>
             <li>Pilih <b>Tambahkan ke layar utama</b> (<i>Add to Home screen</i>) atau <b>Instal aplikasi</b>.</li>
             <li>Di iPhone (Safari): ketuk tombol <b>Share</b> lalu pilih <b>Add to Home Screen</b>.</li>
           </ol>
         </div>
 
-        <button id="btnCopyAppLink" class="btn-secondary" type="button" style="width: 100%;">
+        <button id="btnCopyAppLink" class="btn-outline-pill full-w" type="button">
           Salin Link Aplikasi
         </button>
       </div>
@@ -840,7 +819,7 @@
         </div>
         <p id="loginErrorMsg" class="error-text hidden"></p>
         <div class="form-actions">
-          <button type="submit" class="btn-primary" style="width: 100%;">Masuk Sebagai Admin</button>
+          <button type="submit" class="btn-cobalt-pill full-w">Masuk Sebagai Admin</button>
         </div>
       </form>
     </div>
