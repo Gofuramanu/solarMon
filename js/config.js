@@ -1,13 +1,11 @@
 /**
- * Konfigurasi default aplikasi web SolarMonitor.
- * Ganti mode ke "supabase" dan isi url + anonKey setelah membuat proyek Supabase.
- * Konfigurasi ini juga dapat diubah langsung lewat menu Settings di browser.
+ * Konfigurasi aplikasi web SolarMonitor (Supabase Cloud Live).
  */
 window.APP_CONFIG = {
-  mode: "simulator",
+  mode: "supabase",
   supabase: {
-    url: "",
-    anonKey: "",
+    url: "https://wseuylncwqdisaxkvate.supabase.co",
+    anonKey: "sb_publishable_49bHSv17dA4yQpHETnCu-w_8Lme-vZL",
     deviceId: "ESP32_SOLAR_01"
   }
 };

@@ -236,7 +236,9 @@ void sendTelemetryToSupabase() {
   http.setTimeout(6000);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("apikey", SUPABASE_ANON_KEY);
-  http.addHeader("Authorization", String("Bearer ") + SUPABASE_ANON_KEY);
+  if (String(SUPABASE_ANON_KEY).startsWith("eyJ")) {
+    http.addHeader("Authorization", String("Bearer ") + SUPABASE_ANON_KEY);
+  }
 
   unsigned long uptimeSec = millis() / 1000UL;
   int rssi = WiFi.RSSI();

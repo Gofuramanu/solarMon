@@ -443,8 +443,14 @@ REVOKE ALL ON FUNCTION public.reset_solar_logs(TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.reset_solar_logs(TEXT) TO authenticated;
 
 -- ----------------------------------------------------------------------------
--- 10. ROW LEVEL SECURITY (RLS) POLICIES
+-- 10. ROW LEVEL SECURITY (RLS) POLICIES & HAK AKSES ROLE
 -- ----------------------------------------------------------------------------
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+GRANT SELECT ON public.devices, public.solar_state, public.solar_config, public.telemetry_logs, public.activity_logs TO anon, authenticated;
+GRANT SELECT ON public.user_roles TO authenticated;
+GRANT UPDATE ON public.solar_config TO authenticated;
+GRANT INSERT, UPDATE, DELETE ON public.devices TO authenticated;
+
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.devices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.solar_state ENABLE ROW LEVEL SECURITY;
