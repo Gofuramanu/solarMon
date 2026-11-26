@@ -244,7 +244,7 @@
             </div>
           </div>
 
-          <!-- ROW 2: BENTO 5fr / 3fr / 4fr (Analytics Bar Chart | Thermal Status | Installed Modules) -->
+          <!-- ROW 2: BENTO 4.6fr / 4.2fr / 3.2fr (Analytics Bar Chart | Dual-Panel Weather Widget | Installed Modules) -->
           <div class="bento-row-mid">
             <!-- Col 1: Solar Output Analytics (Capsule Bar Chart matching Donezo) -->
             <div class="card-surface">
@@ -257,23 +257,31 @@
               </div>
             </div>
 
-            <!-- Col 2: Panel Thermal Card (Matching Donezo "Reminders") -->
-            <div class="card-surface thermal-focus-card">
-              <div class="card-header-row">
-                <h3 class="card-title">Suhu Panel</h3>
-                <span id="ovThermalHealth" class="status-tag-soft">Normal</span>
-              </div>
-              <div class="thermal-focus-body">
-                <div class="thermal-big-num">
-                  <span id="ovTempPanel">--</span><small>&deg;C</small>
+            <!-- Col 2: Dual-Panel Weather Widget (Hourly + 4-Day Forecast from Open-Meteo) -->
+            <div class="wx-widget-shell" data-goto="environment" title="Klik untuk detail Solar &amp; Termal">
+              <div class="wx-widget-top">
+                <div class="wx-top-now">
+                  <div class="wx-temp-main-wrap">
+                    <span id="wxWidgetTemp" class="wx-temp-big">--&deg;</span>
+                    <span id="wxWidgetMainIcon" class="wx-main-icon" aria-hidden="true"></span>
+                  </div>
+                  <div class="wx-loc-block">
+                    <strong id="wxWidgetCity">Yogyakarta</strong>
+                    <span id="wxWidgetHiLo">H: --&deg; L: --&deg; &nearr; --</span>
+                  </div>
                 </div>
-                <p id="ovTempHint" class="thermal-meta">Sensor DS18B20 (GPIO 4) &middot; Alarm &ge; 60&deg;C</p>
-                <div id="ovWeatherMini" class="weather-mini-pill">Cuaca Luar: Memuat...</div>
+                <div id="wxWidgetHourly" class="wx-hourly-row">
+                  <div class="wx-hour-slot"><span>--</span><i></i><b>--&deg;</b></div>
+                  <div class="wx-hour-slot"><span>--</span><i></i><b>--&deg;</b></div>
+                  <div class="wx-hour-slot"><span>--</span><i></i><b>--&deg;</b></div>
+                  <div class="wx-hour-slot"><span>--</span><i></i><b>--&deg;</b></div>
+                  <div class="wx-hour-slot"><span>--</span><i></i><b>--&deg;</b></div>
+                  <div class="wx-hour-slot"><span>--</span><i></i><b>--&deg;</b></div>
+                </div>
               </div>
-              <button class="btn-cobalt-pill full-w" data-goto="environment" type="button">
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path></svg>
-                <span>Detail Solar &amp; Termal</span>
-              </button>
+              <div id="wxWidgetDaily" class="wx-widget-bottom">
+                <div class="wx-day-row"><span class="wx-day-name">Memuat prakiraan...</span></div>
+              </div>
             </div>
 
             <!-- Col 3: Installed Hardware List (Matching Donezo "Project" list) -->
@@ -330,7 +338,7 @@
             </div>
           </div>
 
-          <!-- ROW 3: BENTO 5fr / 4fr / 3fr (Recent Logs | Semi-Circle Energy Gauge | Dark-Cobalt Uptime Tracker) -->
+          <!-- ROW 3: BENTO 4.2fr / 2.6fr / 2.6fr / 2.6fr (Recent Logs | Panel Thermal | Semi-Circle Energy Gauge | Dark-Cobalt Uptime Tracker) -->
           <div class="bento-row-bot">
             <!-- Col 1: Recent Telemetry Logs (Matching Donezo "Team Collaboration") -->
             <div class="card-surface">
@@ -341,6 +349,25 @@
               <ul id="overviewActivityList" class="recent-log-list">
                 <li class="empty-note">Menunggu aliran data sensor...</li>
               </ul>
+            </div>
+
+            <!-- Col 2: Panel Thermal Card -->
+            <div class="card-surface thermal-focus-card">
+              <div class="card-header-row">
+                <h3 class="card-title">Suhu Panel</h3>
+                <span id="ovThermalHealth" class="status-tag-soft">Normal</span>
+              </div>
+              <div class="thermal-focus-body">
+                <div class="thermal-big-num">
+                  <span id="ovTempPanel">--</span><small>&deg;C</small>
+                </div>
+                <p id="ovTempHint" class="thermal-meta">Sensor DS18B20 (GPIO 4) &middot; Alarm &ge; 60&deg;C</p>
+                <div id="ovWeatherMini" class="weather-mini-pill">Cuaca Luar: Memuat...</div>
+              </div>
+              <button class="btn-cobalt-pill full-w" data-goto="environment" type="button">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path></svg>
+                <span>Detail Termal</span>
+              </button>
             </div>
 
             <!-- Col 2: Semi-Circle Energy Gauge (Matching Donezo "Project Progress") -->

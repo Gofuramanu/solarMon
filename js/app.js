@@ -534,6 +534,42 @@ function describeWmoWeather(code) {
   return "Berawan";
 }
 
+function windDirArrow(deg) {
+  const dirs = ["↓", "↙", "←", "↖", "↑", "↗", "→", "↘"];
+  const idx = Math.round(((Number(deg) || 0) % 360) / 45) % 8;
+  return dirs[idx];
+}
+
+function getWeatherSvg(code, colored = false, size = 20) {
+  const c = Number(code);
+  // Clear / Mostly clear
+  if (c === 0 || c === 1) {
+    const fill = colored ? "#FBBF24" : "#0B111C";
+    return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="${fill}" stroke="${fill}" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"></circle><path d="M12 2v2.2M12 19.8V22M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2 12h2.2M19.8 12H22M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6" fill="none"></path></svg>`;
+  }
+  // Partly cloudy
+  if (c === 2) {
+    const sunFill = colored ? "#FBBF24" : "#0B111C";
+    const cloudFill = colored ? "#38BDF8" : "#0B111C";
+    return `<svg viewBox="0 0 24 24" width="${size}" height="${size}"><circle cx="8.5" cy="9" r="3.2" fill="${sunFill}"></circle><path d="M8.5 3.5v1.3M4.2 5.2l1 1M3 9h1.3M12.8 5.2l-1 1" stroke="${sunFill}" stroke-width="1.6" stroke-linecap="round"></path><path d="M8.5 18.5h8.2a3.3 3.3 0 0 0 .4-6.58A4.6 4.6 0 0 0 8.3 10.7a3.6 3.6 0 0 0 .2 7.8z" fill="${cloudFill}"></path></svg>`;
+  }
+  // Rain / Drizzle / Showers / Storm
+  if ((c >= 51 && c <= 67) || (c >= 80 && c <= 99)) {
+    const cloudFill = colored ? "#64748B" : "#0B111C";
+    const dropFill = colored ? "#60A5FA" : "#0B111C";
+    return `<svg viewBox="0 0 24 24" width="${size}" height="${size}"><path d="M6.8 15.5h10.2a3.4 3.4 0 0 0 .4-6.78 4.8 4.8 0 0 0-9.1-1.3A3.8 3.8 0 0 0 6.8 15.5z" fill="${cloudFill}"></path><path d="M9 17.5l-1 3M13 17.5l-1 3M16.5 17.5l-1 3" stroke="${dropFill}" stroke-width="1.8" stroke-linecap="round"></path></svg>`;
+  }
+  // Overcast / Cloudy / Fog
+  const cloudFill = colored ? "#94A3B8" : "#0B111C";
+  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}"><path d="M6.5 18h10.8a3.6 3.6 0 0 0 .4-7.18 5 5 0 0 0-9.5-1.32A4 4 0 0 0 6.5 18z" fill="${cloudFill}"></path></svg>`;
+}
+
+function getIndoDayName(dateStr) {
+  const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+  const d = new Date(`${dateStr}T12:00:00`);
+  return Number.isNaN(d.getTime()) ? dateStr : days[d.getDay()];
+}
+
 async function fetchWeatherData() {
   const lat = Number(appState.settings.weatherLat);
   const lon = Number(appState.settings.weatherLon);
@@ -546,11 +582,50 @@ async function fetchWeatherData() {
   try {
     const url =
       `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}` +
-      `&current=temperature_2m,relative_humidity_2m,cloud_cover,weather_code,shortwave_radiation,wind_speed_10m&timezone=auto`;
+      `&current=temperature_2m,relative_humidity_2m,cloud_cover,weather_code,shortwave_radiation,wind_speed_10m,wind_direction_10m` +
+      `&hourly=temperature_2m,weather_code` +
+      `&daily=weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max,wind_direction_10m_dominant` +
+      `&forecast_days=5&timezone=auto`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const cur = data?.current || {};
+    const hourlyRaw = data?.hourly || {};
+    const dailyRaw = data?.daily || {};
+
+    // Pick 6 two-hour slots starting from current local hour
+    const nowTime = cur.time ? new Date(cur.time).getTime() : Date.now();
+    const times = hourlyRaw.time || [];
+    let startIdx = times.findIndex((t) => new Date(t).getTime() >= nowTime);
+    if (startIdx < 0) startIdx = 0;
+    const hourlySlots = [];
+    for (let k = 0; k < 6; k++) {
+      const idx = startIdx + k * 2;
+      if (idx < times.length) {
+        const hh = String(times[idx]).slice(11, 13);
+        hourlySlots.push({
+          hour: hh,
+          temp: Number(hourlyRaw.temperature_2m?.[idx]),
+          code: Number(hourlyRaw.weather_code?.[idx])
+        });
+      }
+    }
+
+    // Build daily array (index 0 = today H/L, indices 1..4 = next 4 days)
+    const dailyDates = dailyRaw.time || [];
+    const todayMax = Number(dailyRaw.temperature_2m_max?.[0]);
+    const todayMin = Number(dailyRaw.temperature_2m_min?.[0]);
+    const dailyNext = [];
+    for (let d = 1; d <= 4 && d < dailyDates.length; d++) {
+      dailyNext.push({
+        dayName: getIndoDayName(dailyDates[d]),
+        code: Number(dailyRaw.weather_code?.[d]),
+        windSpeed: Math.round(Number(dailyRaw.wind_speed_10m_max?.[d]) || 0),
+        windDir: Number(dailyRaw.wind_direction_10m_dominant?.[d]) || 0,
+        minTemp: Math.round(Number(dailyRaw.temperature_2m_min?.[d]) || 0),
+        maxTemp: Math.round(Number(dailyRaw.temperature_2m_max?.[d]) || 0)
+      });
+    }
 
     appState.weather = {
       loaded: true,
@@ -561,8 +636,13 @@ async function fetchWeatherData() {
       cloudCover: Number(cur.cloud_cover),
       radiationWm2: Number(cur.shortwave_radiation),
       windKmh: Number(cur.wind_speed_10m),
+      windDir: Number(cur.wind_direction_10m) || 0,
       weatherCode: cur.weather_code,
       conditionText: describeWmoWeather(cur.weather_code),
+      todayMax: Number.isFinite(todayMax) ? Math.round(todayMax) : null,
+      todayMin: Number.isFinite(todayMin) ? Math.round(todayMin) : null,
+      hourlySlots,
+      dailyNext,
       updatedAt: new Date()
     };
   } catch (err) {
@@ -571,6 +651,45 @@ async function fetchWeatherData() {
   }
 
   renderWeatherUI();
+}
+
+function renderDashboardWeatherWidget(w, locName) {
+  setText("wxWidgetCity", locName);
+  if (!w.loaded) return;
+
+  setText("wxWidgetTemp", `${Math.round(w.tempC)}°`);
+  const mainIconEl = document.getElementById("wxWidgetMainIcon");
+  if (mainIconEl) mainIconEl.innerHTML = getWeatherSvg(w.weatherCode, false, 30);
+
+  const hi = w.todayMax != null ? `${w.todayMax}°` : "--°";
+  const lo = w.todayMin != null ? `${w.todayMin}°` : "--°";
+  const arrow = windDirArrow(w.windDir);
+  setText("wxWidgetHiLo", `H: ${hi} L: ${lo} ${arrow} ${Math.round(w.windKmh || 0)}`);
+
+  const hourlyEl = document.getElementById("wxWidgetHourly");
+  if (hourlyEl && Array.isArray(w.hourlySlots) && w.hourlySlots.length > 0) {
+    hourlyEl.innerHTML = w.hourlySlots
+      .map(
+        (slot) =>
+          `<div class="wx-hour-slot"><span>${slot.hour}</span><i>${getWeatherSvg(slot.code, false, 20)}</i><b>${Math.round(slot.temp)}°</b></div>`
+      )
+      .join("");
+  }
+
+  const dailyEl = document.getElementById("wxWidgetDaily");
+  if (dailyEl && Array.isArray(w.dailyNext) && w.dailyNext.length > 0) {
+    dailyEl.innerHTML = w.dailyNext
+      .map(
+        (day) =>
+          `<div class="wx-day-row">` +
+          `<span class="wx-day-name">${day.dayName}</span>` +
+          `<span class="wx-day-icon">${getWeatherSvg(day.code, true, 18)}</span>` +
+          `<span class="wx-day-wind">${windDirArrow(day.windDir)} ${day.windSpeed}</span>` +
+          `<span class="wx-day-temps"><span class="low">${day.minTemp}°</span><span class="high">${day.maxTemp}°</span></span>` +
+          `</div>`
+      )
+      .join("");
+  }
 }
 
 function renderWeatherUI() {
@@ -594,6 +713,7 @@ function renderWeatherUI() {
 
   if (!w.loaded) return;
 
+  renderDashboardWeatherWidget(w, locName);
   setText("ovWeatherMini", `Udara Luar: ${formatNum(w.tempC, 1)} C - ${w.conditionText}`);
   setText("wxCondition", w.conditionText);
   setText("wxAmbientTemp", `${formatNum(w.tempC, 1)} °C`);
