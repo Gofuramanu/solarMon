@@ -62,6 +62,8 @@ const appState = {
 
 let supabaseClient = null;
 let supabaseChannels = [];
+let supabasePollIntervalId = null;
+let lastPushedSeenAt = null;
 let simIntervalId = null;
 let heartbeatTimerId = null;
 let charts = {};
@@ -382,8 +384,14 @@ function updateRealtimeCharts() {
 }
 
 function pushRealtimePoint(t) {
+  const seenKey = t.last_seen_at || t.recorded_at;
+  if (appState.settings.mode === "supabase" && seenKey && seenKey === lastPushedSeenAt) {
+    return;
+  }
+  if (seenKey) lastPushedSeenAt = seenKey;
+
   appState.realtimeSeries.push({
-    label: formatTime(t.last_seen_at || new Date().toISOString()),
+    label: formatTime(seenKey || new Date().toISOString()),
     voltage: Number(t.voltage) || 0,
     current_ma: Number(t.current_ma) || 0,
     power_w: Number(t.power_w) || 0,
@@ -404,90 +412,91 @@ function pushRealtimePoint(t) {
 function renderAll() {
   const online = isDeviceOnline();
   appState.lastOnlineState = online;
-  const t = online ? appState.telemetry : createEmptyTelemetry();
+  const hasData = online || Boolean(appState.telemetry && appState.telemetry.last_seen_at);
+  const t = hasData ? appState.telemetry : createEmptyTelemetry();
   const c = appState.config;
 
   setText("sidebarDeviceId", appState.settings.deviceId);
   renderTopbarBadges();
 
   // --- HALAMAN 1: OVERVIEW ---
-  setText("ovWifiStatus", online && t.wifi_connected ? "Connected" : "Offline");
+  setText("ovWifiStatus", online && t.wifi_connected ? "Connected" : hasData ? "Terputus" : "Offline");
   const wifiDot = document.getElementById("ovWifiDot");
-  if (wifiDot) wifiDot.className = "led-pip " + (online && t.wifi_connected ? "green" : "red");
-  setText("ovLastSeen", online ? `Sync: ${formatTime(t.last_seen_at)}` : "Menunggu node");
+  if (wifiDot) wifiDot.className = "led-pip " + (online && t.wifi_connected ? "green" : hasData ? "amber" : "red");
+  setText("ovLastSeen", hasData ? `${online ? "Sync" : "Terakhir"}: ${formatTime(t.last_seen_at)}` : "Menunggu node");
 
-  setText("ovUptime", online ? formatUptime(t.uptime_seconds) : "00h 00m");
-  setText("ovLastSeenSmall", online ? `${Math.floor(t.uptime_seconds || 0)} detik` : "0 detik");
+  setText("ovUptime", hasData ? formatUptime(t.uptime_seconds) : "00h 00m");
+  setText("ovLastSeenSmall", hasData ? `${Math.floor(t.uptime_seconds || 0)} detik` : "0 detik");
 
   const tempVal = Number(t.temperature) || 0;
-  const isOverheat = online && t.temp_ok && tempVal >= c.temp_threshold_alarm;
-  const isWarm = online && t.temp_ok && tempVal >= c.temp_threshold_warn;
-  const thermalHealth = !online ? "Offline" : !t.temp_ok ? "Sensor Err" : isOverheat ? "Overheat" : isWarm ? "Hangat" : "Normal";
+  const isOverheat = hasData && t.temp_ok && tempVal >= c.temp_threshold_alarm;
+  const isWarm = hasData && t.temp_ok && tempVal >= c.temp_threshold_warn;
+  const thermalHealth = !hasData ? "Offline" : !t.temp_ok ? "Sensor Err" : isOverheat ? "Overheat" : isWarm ? "Hangat" : "Normal";
   setText("ovThermalHealth", thermalHealth);
   setText("ovTempHint", `Alarm >= ${formatNum(c.temp_threshold_alarm, 0)} C`);
   const thermalDot = document.getElementById("ovThermalDot");
   if (thermalDot) {
-    thermalDot.className = "led-pip " + (!online || !t.temp_ok ? "red" : isOverheat || isWarm ? "amber" : "green");
+    thermalDot.className = "led-pip " + (!hasData || !t.temp_ok ? "red" : isOverheat || isWarm ? "amber" : "green");
   }
 
-  const readyCount = online ? [t.ina_ok, t.bh_ok, t.temp_ok].filter(Boolean).length : 0;
-  setText("ovBusHealth", online ? `${readyCount}/3 Ready` : "0/3 Ready");
+  const readyCount = hasData ? [t.ina_ok, t.bh_ok, t.temp_ok].filter(Boolean).length : 0;
+  setText("ovBusHealth", hasData ? `${readyCount}/3 Ready` : "0/3 Ready");
   const busDot = document.getElementById("ovBusDot");
   if (busDot) busDot.className = "led-pip " + (readyCount === 3 ? "green" : readyCount > 0 ? "amber" : "red");
 
-  setText("ovLux", online && t.bh_ok ? Math.round(t.lux).toLocaleString("id-ID") : "--");
-  setText("ovTempPanel", online && t.temp_ok ? formatNum(t.temperature, 1) : "--");
+  setText("ovLux", hasData && t.bh_ok ? Math.round(t.lux).toLocaleString("id-ID") : "--");
+  setText("ovTempPanel", hasData && t.temp_ok ? formatNum(t.temperature, 1) : "--");
 
-  const lightCat = online && t.bh_ok ? getLightCategory(t.lux, c.low_lux_threshold) : "--";
+  const lightCat = hasData && t.bh_ok ? getLightCategory(t.lux, c.low_lux_threshold) : "--";
   setText("ovSolarCond", lightCat);
   const lightDot = document.getElementById("ovLightDot");
   if (lightDot) {
-    lightDot.className = "led-pip " + (online && t.bh_ok && t.lux >= c.low_lux_threshold ? "green" : "red");
+    lightDot.className = "led-pip " + (hasData && t.bh_ok && t.lux >= c.low_lux_threshold ? "green" : "red");
   }
 
-  setText("ovVoltage", online && t.ina_ok ? formatNum(t.voltage, 2) : "--");
-  setText("ovCurrent", online && t.ina_ok ? formatNum(t.current_ma, 1) : "--");
-  setText("ovPower", online && t.ina_ok ? formatNum(t.power_w, 2) : "--");
-  setText("ovEnergy", online ? formatNum(t.energy_wh, 2) : "--");
+  setText("ovVoltage", hasData && t.ina_ok ? formatNum(t.voltage, 2) : "--");
+  setText("ovCurrent", hasData && t.ina_ok ? formatNum(t.current_ma, 1) : "--");
+  setText("ovPower", hasData && t.ina_ok ? formatNum(t.power_w, 2) : "--");
+  setText("ovEnergy", hasData ? formatNum(t.energy_wh, 2) : "--");
 
-  setStateBadge("ovInaBadge", online && t.ina_ok, "READY", online ? "ERROR" : "OFFLINE");
-  setStateBadge("ovBhBadge", online && t.bh_ok, "READY", online ? "ERROR" : "OFFLINE");
-  setStateBadge("ovDsBadge", online && t.temp_ok, "READY", online ? "ERROR" : "OFFLINE");
-  setStateBadge("ovLcdBadge", online, "ACTIVE", "OFFLINE");
+  setStateBadge("ovInaBadge", hasData && t.ina_ok, "READY", hasData ? "ERROR" : "OFFLINE");
+  setStateBadge("ovBhBadge", hasData && t.bh_ok, "READY", hasData ? "ERROR" : "OFFLINE");
+  setStateBadge("ovDsBadge", hasData && t.temp_ok, "READY", hasData ? "ERROR" : "OFFLINE");
+  setStateBadge("ovLcdBadge", online, "ACTIVE", hasData ? "STANDBY" : "OFFLINE");
 
   // --- HALAMAN 2: ELECTRICAL TELEMETRY ---
-  const v = online && t.ina_ok ? Number(t.voltage) || 0 : 0;
-  const ma = online && t.ina_ok ? Number(t.current_ma) || 0 : 0;
-  const pw = online && t.ina_ok ? Number(t.power_w) || 0 : 0;
-  const wh = online ? Number(t.energy_wh) || 0 : 0;
+  const v = hasData && t.ina_ok ? Number(t.voltage) || 0 : 0;
+  const ma = hasData && t.ina_ok ? Number(t.current_ma) || 0 : 0;
+  const pw = hasData && t.ina_ok ? Number(t.power_w) || 0 : 0;
+  const wh = hasData ? Number(t.energy_wh) || 0 : 0;
   const capWp = Math.max(1, Number(c.panel_capacity_wp) || 10);
-  const loadPct = online ? Math.min(100, Math.max(0, (pw / capWp) * 100)) : 0;
+  const loadPct = hasData ? Math.min(100, Math.max(0, (pw / capWp) * 100)) : 0;
 
-  setText("elPower", online && t.ina_ok ? formatNum(pw, 2) : "--");
+  setText("elPower", hasData && t.ina_ok ? formatNum(pw, 2) : "--");
   setText("elLoadPct", `${loadPct.toFixed(1)}% DARI ${capWp}Wp`);
   const loadBar = document.getElementById("elLoadBar");
-  if (loadBar) loadBar.style.width = online ? `${Math.max(3, loadPct)}%` : "0%";
-  setText("elPowerMw", online && t.ina_ok ? `${formatNum(pw * 1000, 0)} mW` : "-- mW");
-  setText("elEnergyKwh", online ? `${formatNum(wh / 1000, 4)} kWh` : "-- kWh");
+  if (loadBar) loadBar.style.width = hasData ? `${Math.max(pw > 0 ? 3 : 0, loadPct)}%` : "0%";
+  setText("elPowerMw", hasData && t.ina_ok ? `${formatNum(pw * 1000, 0)} mW` : "-- mW");
+  setText("elEnergyKwh", hasData ? `${formatNum(wh / 1000, 4)} kWh` : "-- kWh");
 
-  setText("elVoltage", online && t.ina_ok ? formatNum(v, 2) : "--");
-  setText("elCurrent", online && t.ina_ok ? formatNum(ma, 1) : "--");
-  setText("elCurrentAmp", online && t.ina_ok ? `${formatNum(ma / 1000, 3)} A` : "-- A");
-  setText("elEnergy", online ? formatNum(wh, 2) : "--");
+  setText("elVoltage", hasData && t.ina_ok ? formatNum(v, 2) : "--");
+  setText("elCurrent", hasData && t.ina_ok ? formatNum(ma, 1) : "--");
+  setText("elCurrentAmp", hasData && t.ina_ok ? `${formatNum(ma / 1000, 3)} A` : "-- A");
+  setText("elEnergy", hasData ? formatNum(wh, 2) : "--");
 
-  if (!online) setQualityTag("elVoltageQuality", "Offline", "neutral");
+  if (!hasData) setQualityTag("elVoltageQuality", "Offline", "neutral");
   else if (!t.ina_ok) setQualityTag("elVoltageQuality", "Sensor Err", "bad");
   else if (v < 1.0) setQualityTag("elVoltageQuality", "0 V / Gelap", "warn");
-  else setQualityTag("elVoltageQuality", "Aktif", "good");
+  else setQualityTag("elVoltageQuality", online ? "Aktif" : "Terakhir", "good");
 
   // --- HALAMAN 3: SOLAR & THERMAL ---
-  setText("envLux", online && t.bh_ok ? Math.round(t.lux).toLocaleString("id-ID") : "--");
-  setText("envTempPanel", online && t.temp_ok ? formatNum(t.temperature, 1) : "--");
+  setText("envLux", hasData && t.bh_ok ? Math.round(t.lux).toLocaleString("id-ID") : "--");
+  setText("envTempPanel", hasData && t.temp_ok ? formatNum(t.temperature, 1) : "--");
   setText("envLightCategory", lightCat === "--" ? "--" : `${lightCat} (${Math.round(t.lux)} Lux)`);
   setText("envWarnThreshold", formatNum(c.temp_threshold_warn, 1));
   setText("envAlarmThreshold", formatNum(c.temp_threshold_alarm, 1));
 
-  if (!online) setQualityTag("envPanelZone", "Offline", "neutral");
+  if (!hasData) setQualityTag("envPanelZone", "Offline", "neutral");
   else if (!t.temp_ok) setQualityTag("envPanelZone", "DS18B20 Err", "bad");
   else if (isOverheat) setQualityTag("envPanelZone", "OVERHEAT", "bad");
   else if (isWarm) setQualityTag("envPanelZone", "HANGAT", "warn");
@@ -537,13 +546,14 @@ function evaluateAlerts() {
 
   const online = isDeviceOnline();
   const t = appState.telemetry;
+  const hasData = online || Boolean(t && t.last_seen_at);
   const alarmTh = Number(appState.config.temp_threshold_alarm) || 60;
 
-  if (online && t.temp_ok && t.temperature >= alarmTh) {
+  if (hasData && t.temp_ok && t.temperature >= alarmTh) {
     banner.className = "alert-banner";
     iconEl.textContent = "OVERHEAT";
     textEl.textContent = `Suhu panel mencapai ${t.temperature.toFixed(1)} C (melewati batas alarm ${alarmTh} C).`;
-  } else if (online && (!t.ina_ok || !t.bh_ok || !t.temp_ok)) {
+  } else if (hasData && (!t.ina_ok || !t.bh_ok || !t.temp_ok)) {
     banner.className = "alert-banner";
     iconEl.textContent = "SENSOR";
     const errs = [!t.ina_ok && "INA219", !t.bh_ok && "BH1750", !t.temp_ok && "DS18B20"].filter(Boolean).join(", ");
@@ -551,7 +561,9 @@ function evaluateAlerts() {
   } else if (!online && appState.settings.mode !== "simulator") {
     banner.className = "alert-banner";
     iconEl.textContent = "OFFLINE";
-    textEl.textContent = "Node ESP32 belum mengirim data terbaru. Menunggu sinkronisasi dari hardware.";
+    textEl.textContent = hasData
+      ? `Menampilkan data terakhir (${formatTime(t.last_seen_at)}). Menunggu kirim ulang dari ESP32.`
+      : "Node ESP32 belum mengirim data terbaru. Menunggu sinkronisasi dari hardware.";
   } else {
     banner.className = "alert-banner hidden";
   }
@@ -726,6 +738,7 @@ function startSimulatorMode() {
 // ----------------------------------------------------------------------------
 async function startSupabaseMode() {
   stopActiveConnections();
+  lastPushedSeenAt = null;
   appState.telemetry = createEmptyTelemetry();
   appState.realtimeSeries = [];
   updateRealtimeCharts();
@@ -749,8 +762,9 @@ async function startSupabaseMode() {
     } else {
       appState.user = null;
       appState.role = "viewer";
-      await fetchSupabaseInitialState();
+      await fetchSupabaseInitialState(true);
       subscribeSupabaseRealtime();
+      startSupabasePolling();
       updateAuthUI();
     }
 
@@ -779,17 +793,25 @@ async function handleSupabaseUser(user) {
     .maybeSingle();
 
   appState.role = roleRow?.role || "viewer";
-  await fetchSupabaseInitialState();
+  await fetchSupabaseInitialState(true);
   subscribeSupabaseRealtime();
+  startSupabasePolling();
   renderAll();
   updateAuthUI();
 }
 
-async function fetchSupabaseInitialState() {
+function startSupabasePolling() {
+  if (supabasePollIntervalId) clearInterval(supabasePollIntervalId);
+  supabasePollIntervalId = setInterval(() => {
+    fetchSupabaseInitialState(false);
+  }, 4000);
+}
+
+async function fetchSupabaseInitialState(includeSeries = false) {
   if (!supabaseClient) return;
   const deviceId = appState.settings.deviceId;
 
-  const [stateRes, cfgRes, actRes] = await Promise.all([
+  const queries = [
     supabaseClient.from("solar_state").select("*").eq("device_id", deviceId).maybeSingle(),
     supabaseClient.from("solar_config").select("*").eq("device_id", deviceId).maybeSingle(),
     supabaseClient
@@ -798,15 +820,41 @@ async function fetchSupabaseInitialState() {
       .eq("device_id", deviceId)
       .order("created_at", { ascending: false })
       .limit(30)
-  ]);
+  ];
+
+  if (includeSeries) {
+    queries.push(
+      supabaseClient
+        .from("telemetry_logs")
+        .select("*")
+        .eq("device_id", deviceId)
+        .order("recorded_at", { ascending: false })
+        .limit(MAX_REALTIME_POINTS)
+    );
+  }
+
+  const [stateRes, cfgRes, actRes, logsRes] = await Promise.all(queries);
 
   if (cfgRes.data) {
     appState.config = cfgRes.data;
     syncThresholdInputs();
   }
+  if (includeSeries && logsRes?.data && logsRes.data.length > 0) {
+    const recent = [...logsRes.data].reverse();
+    appState.realtimeSeries = recent.map((r) => ({
+      label: formatTime(r.recorded_at),
+      voltage: Number(r.voltage) || 0,
+      current_ma: Number(r.current_ma) || 0,
+      power_w: Number(r.power_w) || 0,
+      lux: Number(r.lux) || 0,
+      temperature: Number(r.temperature) || 0
+    }));
+    lastPushedSeenAt = recent[recent.length - 1].recorded_at;
+    updateRealtimeCharts();
+  }
   if (stateRes.data) {
     appState.telemetry = stateRes.data;
-    if (isDeviceOnline()) {
+    if (stateRes.data.last_seen_at) {
       pushRealtimePoint(stateRes.data);
     }
   } else {
@@ -873,6 +921,10 @@ function stopActiveConnections() {
   if (simIntervalId) {
     clearInterval(simIntervalId);
     simIntervalId = null;
+  }
+  if (supabasePollIntervalId) {
+    clearInterval(supabasePollIntervalId);
+    supabasePollIntervalId = null;
   }
   unsubscribeSupabaseRealtime();
 }
@@ -1321,10 +1373,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const currentlyOnline = isDeviceOnline();
     if (currentlyOnline !== appState.lastOnlineState) {
       appState.lastOnlineState = currentlyOnline;
-      if (!currentlyOnline && appState.settings.mode !== "simulator") {
-        appState.realtimeSeries = [];
-        updateRealtimeCharts();
-      }
       renderAll();
     } else {
       updateHeartbeatBadge();
